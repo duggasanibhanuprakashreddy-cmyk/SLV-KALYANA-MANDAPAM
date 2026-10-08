@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 140" width="540" height="140">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BF953F" />
+      <stop offset="25%" stop-color="#FCF6BA" />
+      <stop offset="50%" stop-color="#B38728" />
+      <stop offset="75%" stop-color="#FBF5B7" />
+      <stop offset="100%" stop-color="#AA771C" />
+    </linearGradient>
+    <linearGradient id="deepRedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7B1113" />
+      <stop offset="100%" stop-color="#4A0507" />
+    </linearGradient>
+    <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Traditional Kalash / Gopuram Emblem in Center-Left -->
+  <g transform="translate(18, 12)">
+    <!-- Aura circle -->
+    <circle cx="50" cy="58" r="48" fill="url(#deepRedGrad)" stroke="url(#goldGrad)" stroke-width="2.5" />
+    <circle cx="50" cy="58" r="44" fill="none" stroke="url(#goldGrad)" stroke-width="1" stroke-dasharray="3,3" />
+    
+    <!-- Kalash Pot Motif -->
+    <path d="M 50 24 L 56 36 L 44 36 Z" fill="url(#goldGrad)" />
+    <!-- Coconut & Mango Leaves -->
+    <path d="M 50 28 C 45 32, 38 35, 34 38 C 40 40, 47 38, 50 34" fill="url(#goldGrad)" />
+    <path d="M 50 28 C 55 32, 62 35, 66 38 C 60 40, 53 38, 50 34" fill="url(#goldGrad)" />
+    <circle cx="50" cy="40" r="10" fill="url(#goldGrad)" />
+    <!-- Kalash body -->
+    <path d="M 38 46 Q 32 60 36 74 Q 50 82 64 74 Q 68 60 62 46 Z" fill="url(#goldGrad)" />
+    <!-- Base -->
+    <rect x="42" y="78" width="16" height="4" rx="2" fill="url(#goldGrad)" />
+    <!-- Sacred Om / Swastik dot -->
+    <circle cx="50" cy="62" r="3" fill="#6A0C13" />
+  </g>
+
+  <!-- Text Content -->
+  <!-- Main Title: SLV -->
+  <text x="135" y="58" font-family="'Cinzel', 'Playfair Display', 'Georgia', serif" font-size="44" font-weight="800" letter-spacing="4" fill="url(#goldGrad)" filter="url(#goldGlow)">
+    SLV
+  </text>
+  
+  <!-- Subtitle: KALYANA MANDAPAM -->
+  <text x="137" y="85" font-family="'Cinzel', 'Outfit', 'Montserrat', sans-serif" font-size="19" font-weight="700" letter-spacing="6" fill="#4A1E14">
+    KALYANA MANDAPAM
+  </text>
+  
+  <!-- Telugu Tagline: ఎస్.ఎల్.వి కళ్యాణ మండపము - తంబళ్లపల్లె -->
+  <text x="138" y="108" font-family="'Noto Sans Telugu', 'Mandali', sans-serif" font-size="14" font-weight="600" fill="#7A4B1A" letter-spacing="0.5">
+    ఎస్.ఎల్.వి కళ్యాణ మండపము • తంబళ్లపల్లె
+  </text>
+
+  <!-- Decorative Underline Flourish -->
+  <path d="M 136 118 L 320 118 M 325 118 L 335 118 M 340 118 L 470 118" stroke="url(#goldGrad)" stroke-width="1.5" stroke-linecap="round" />
+  <circle cx="330" cy="118" r="2.5" fill="url(#goldGrad)" />
+  <circle cx="136" cy="118" r="2" fill="url(#goldGrad)" />
+  <circle cx="470" cy="118" r="2" fill="url(#goldGrad)" />
+
+  <!-- 5-Star Badge Text -->
+  <g transform="translate(435, 30)">
+    <rect x="0" y="0" width="85" height="24" rx="12" fill="#FAF4EB" stroke="#D4AF37" stroke-width="1.2" />
+    <text x="42" y="16" font-family="'Inter', sans-serif" font-size="11" font-weight="700" fill="#8B5E14" text-anchor="middle">
+      ★ 4.8 RATED
+    </text>
+  </g>
+</svg>
