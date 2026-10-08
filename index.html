@@ -95,6 +95,30 @@
         <a href="tel:6303414221" class="topbar-contact">
           <span class="icon">📱</span> 6303414221
         </a>
+        <button class="topbar-pill manager-login-pill" onclick="openManagerLoginModal()" title="Author / Manager Admin Mode">
+          🔒 Manager Login
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Author / Manager Mode Floating Bar -->
+  <div class="manager-admin-bar" id="managerAdminBar" style="display: none;">
+    <div class="container manager-bar-content">
+      <div class="manager-info">
+        <span class="badge-role">👑 AUTHOR / MANAGER PORTAL ACTIVE</span>
+        <span class="manager-welcome">Welcome, Duggasani Bhanuprakash Reddy & Ramana Reddy</span>
+      </div>
+      <div class="manager-actions">
+        <button class="btn btn-sm btn-gold" onclick="openOfflineBookingModal()">
+          ➕ Block Date (Offline Booking)
+        </button>
+        <button class="btn btn-sm btn-glass" onclick="openBookingRegisterModal()">
+          📋 View Booked Dates (<span id="totalBookingsCount">0</span>)
+        </button>
+        <button class="btn btn-sm btn-outline" onclick="managerLogout()">
+          🚪 Logout
+        </button>
       </div>
     </div>
   </div>
@@ -159,6 +183,10 @@
           <span>Book Venue</span>
         </button>
 
+        <button class="btn btn-outline nav-manager-btn" onclick="openManagerLoginModal()" title="Author & Manager Mode">
+          🔒 Manager
+        </button>
+
         <!-- Mobile Hamburger Toggle -->
         <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle navigation menu">
           <span></span><span></span><span></span>
@@ -174,6 +202,7 @@
       </div>
       <ul class="mobile-nav-links">
         <li><a href="#about" class="drawer-link">About Venue</a></li>
+        <li><a href="javascript:void(0)" onclick="openManagerLoginModal();" class="drawer-link" style="color: var(--royal-maroon); font-weight: 700;">🔒 Manager Login (Edit Dates)</a></li>
         <li><a href="#capacities" class="drawer-link">Hall Capacities (500/500)</a></li>
         <li><a href="#lighting-experience" class="drawer-link">3D Lighting Showcase</a></li>
         <li><a href="#calendar" class="drawer-link">Muhurtham Calendar</a></li>
@@ -609,6 +638,7 @@
               <span class="legend-item"><span class="legend-dot available"></span> Available</span>
               <span class="legend-item"><span class="legend-dot muhurtham"></span> Subha Muhurtham</span>
               <span class="legend-item"><span class="legend-dot fast-filling"></span> High Demand</span>
+              <span class="legend-item"><span class="legend-dot booked"></span> Booked</span>
             </div>
           </div>
 
@@ -637,7 +667,30 @@
                 <p id="selectedDateTithi">Click on any date to inspect Muhurtham timings & slot availability.</p>
               </div>
 
-              <div class="selected-slot-options">
+              <!-- Booked Notice Box (Shown when selected date is booked offline) -->
+              <div class="booked-notice-box" id="bookedDateNotice" style="display: none;">
+                <div class="booked-notice-header">
+                  <span class="booked-icon">⛔</span>
+                  <div>
+                    <h4>Date Already Booked & Reserved</h4>
+                    <span class="booked-tag">Offline Reservation Confirmed</span>
+                  </div>
+                </div>
+                <p id="bookedReasonText">
+                  This auspicious date has already been booked and reserved by an offline party. Online booking inquiries are disabled for this date to avoid double booking.
+                </p>
+                <div class="booked-box-actions">
+                  <button class="btn btn-gold-outline w-full" onclick="selectNextAvailableDate()">
+                    👉 Find Next Available Auspicious Date
+                  </button>
+                  <a href="tel:09440400291" class="btn btn-outline w-full" style="margin-top: 8px;">
+                    📞 Call Management for Queries: 094404 00291
+                  </a>
+                </div>
+              </div>
+
+              <!-- Normal Available Date Slot Options (Hidden if booked) -->
+              <div class="selected-slot-options" id="availableSlotOptions">
                 <label class="slot-option">
                   <input type="radio" name="eventSlot" value="Morning Muhurtham (05:00 AM - 02:00 PM)" checked>
                   <div class="slot-box">
@@ -661,7 +714,39 @@
                 </label>
               </div>
 
-              <div class="sidebar-actions">
+              <!-- Manager Quick Date Editor (Visible only when manager logged in) -->
+              <div class="admin-date-editor-box" id="adminDateEditor" style="display: none;">
+                <div class="admin-editor-title">
+                  <span>👑 MANAGER DATE CONTROLS</span>
+                  <small id="adminDateLabel">Update selected date</small>
+                </div>
+                <div class="form-group mb-2">
+                  <label for="adminStatusSelect">Status for this Date:</label>
+                  <select id="adminStatusSelect" class="form-control" onchange="previewAdminStatusChange()">
+                    <option value="available">🟢 Available (Open Online)</option>
+                    <option value="booked">🔴 BOOKED (Offline Walk-in / Confirmed)</option>
+                    <option value="tentative">🟡 Tentative Hold (In Negotiation)</option>
+                  </select>
+                </div>
+                <div class="form-group mb-2" id="adminCustomerGroup">
+                  <label for="adminCustomerName">Offline Customer / Family Name:</label>
+                  <input type="text" id="adminCustomerName" placeholder="e.g. Suresh & Kavitha" class="form-control">
+                </div>
+                <div class="form-group mb-2" id="adminCustomerPhoneGroup">
+                  <label for="adminCustomerPhone">Customer Phone Number:</label>
+                  <input type="tel" id="adminCustomerPhone" placeholder="e.g. 9876543210" class="form-control">
+                </div>
+                <div class="admin-btn-row">
+                  <button class="btn btn-sm btn-primary w-full" onclick="saveAdminDateChange()">
+                    💾 Save Status for This Date
+                  </button>
+                  <button class="btn btn-sm btn-outline w-full" onclick="clearAdminDateBooking()" style="margin-top: 6px;">
+                    🔄 Make Available Again
+                  </button>
+                </div>
+              </div>
+
+              <div class="sidebar-actions" id="availableDateActions">
                 <button class="btn btn-whatsapp w-full" id="calendarWhatsAppBtn" onclick="inquireSelectedDateViaWhatsApp()">
                   <span>💬 Inquire This Date on WhatsApp</span>
                 </button>
@@ -1420,6 +1505,105 @@
     <div class="lightbox-content">
       <img src="" alt="" id="lightboxImg" class="lightbox-image">
       <div class="lightbox-caption" id="lightboxCaption"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       AUTHOR / MANAGER ADMINISTRATION MODALS
+       ========================================================================== -->
+
+  <!-- 1. MANAGER LOGIN AUTHENTICATION MODAL -->
+  <div class="modal-overlay" id="managerLoginModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeManagerLoginModal()" aria-label="Close dialog">&times;</button>
+      <div class="modal-header">
+        <span class="modal-badge">VENUE ADMINISTRATION ACCESS</span>
+        <h3>Author & Manager Login</h3>
+        <p>Restricted access for <strong>Ramana Reddy</strong> & <strong>Duggasani Bhanuprakash Reddy</strong> to block offline dates and manage availability.</p>
+      </div>
+      <form id="managerLoginForm" onsubmit="handleManagerLogin(event)">
+        <div class="form-group">
+          <label for="managerPin">Enter Manager Passcode / PIN *</label>
+          <input type="password" id="managerPin" required placeholder="Enter PIN (e.g. 6303)" class="form-control" autocomplete="off">
+          <small class="pin-hint">💡 Default PIN: <code>6303</code> or <code>0944</code> (From venue phone numbers)</small>
+        </div>
+        <div class="modal-button-group">
+          <button type="submit" class="btn btn-primary w-full">
+            <span>🔓 Authenticate & Unlock Manager Portal</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. OFFLINE BOOKING BLOCK MODAL -->
+  <div class="modal-overlay" id="offlineBookingModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeOfflineBookingModal()" aria-label="Close dialog">&times;</button>
+      <div class="modal-header">
+        <span class="modal-badge">OFFLINE WALK-IN REGISTRATION</span>
+        <h3>Block Date for Offline Booking</h3>
+        <p>Record in-person or phone bookings so nobody else can book this date online.</p>
+      </div>
+      <form id="offlineBookingForm" onsubmit="saveOfflineBooking(event)">
+        <div class="form-group">
+          <label for="offlineDate">Function Date *</label>
+          <input type="date" id="offlineDate" required class="form-control">
+        </div>
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="offlineCustomer">Customer / Family Name *</label>
+            <input type="text" id="offlineCustomer" required placeholder="e.g. Suresh & Kavitha" class="form-control">
+          </div>
+          <div class="form-group col-half">
+            <label for="offlinePhone">Customer Phone Number *</label>
+            <input type="tel" id="offlinePhone" required placeholder="e.g. 9876543210" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="offlineSlot">Slot / Timing</label>
+            <select id="offlineSlot" class="form-control">
+              <option value="Full Day 24-Hours" selected>Full Day 24-Hours</option>
+              <option value="Morning Muhurtham (05:00 AM - 02:00 PM)">Morning Muhurtham</option>
+              <option value="Evening Reception (04:00 PM - 11:00 PM)">Evening Reception</option>
+            </select>
+          </div>
+          <div class="form-group col-half">
+            <label for="offlineAdvance">Advance Token (₹)</label>
+            <input type="text" id="offlineAdvance" placeholder="e.g. ₹25,000" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="offlineNotes">Special Notes</label>
+          <textarea id="offlineNotes" rows="2" placeholder="e.g. Booked in person at mandapam office, 450 guests expected" class="form-control"></textarea>
+        </div>
+        <div class="modal-button-group">
+          <button type="submit" class="btn btn-primary w-full">
+            <span>🔒 Save & Mark Date as BOOKED</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. BOOKINGS REGISTER OVERVIEW MODAL -->
+  <div class="modal-overlay" id="bookingRegisterModal" aria-hidden="true">
+    <div class="modal-card" style="max-width: 660px;">
+      <button class="modal-close" onclick="closeBookingRegisterModal()" aria-label="Close dialog">&times;</button>
+      <div class="modal-header">
+        <span class="modal-badge">SLV BOOKINGS REGISTER</span>
+        <h3>All Reserved & Booked Dates</h3>
+        <p>Review all dates blocked for offline and online events. You can release or modify dates anytime.</p>
+      </div>
+      <div id="bookingRegisterContainer" style="max-height: 380px; overflow-y: auto; margin-bottom: 20px;">
+        <!-- Populated dynamically by script.js -->
+      </div>
+      <div class="modal-button-group">
+        <button type="button" class="btn btn-gold w-full" onclick="closeBookingRegisterModal(); openOfflineBookingModal();">
+          ➕ Block Another Date
+        </button>
+      </div>
     </div>
   </div>
 

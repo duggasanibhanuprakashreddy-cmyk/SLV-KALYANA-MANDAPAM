@@ -2798,3 +2798,221 @@ button {
   .form-row { flex-direction: column; gap: 0; }
   .lighting-switch-bar { flex-direction: column; }
 }
+
+/* ==========================================================================
+   AUTHOR / MANAGER PORTAL STYLES
+   ========================================================================== */
+.manager-login-pill {
+  cursor: pointer;
+  background: rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: #FFF2A1;
+  font-weight: 700;
+}
+
+.manager-login-pill:hover {
+  background: rgba(255, 215, 0, 0.35);
+  color: #FFFFFF;
+}
+
+.nav-manager-btn {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+}
+
+.manager-admin-bar {
+  background: linear-gradient(135deg, #4A0507 0%, #7B1113 100%);
+  color: #FFFFFF;
+  padding: 10px 0;
+  border-bottom: 2px solid var(--gold-primary);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 100;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.manager-bar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.manager-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge-role {
+  background: var(--gold-shimmer);
+  color: #382100;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+}
+
+.manager-welcome {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #FFF7EB;
+}
+
+.manager-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Booked Status Styles in Calendar */
+.cal-day-cell.is-booked {
+  background: #FFF1F2 !important;
+  border: 1.5px solid #E11D48 !important;
+}
+
+.cal-day-cell.is-booked .day-num {
+  color: #9F1239;
+}
+
+.status-booked {
+  color: #BE123C;
+  font-weight: 800;
+  background: #FFE4E6;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.legend-dot.booked {
+  background: #E11D48;
+}
+
+/* Booked Notice Box in Sidebar */
+.booked-notice-box {
+  background: #FFF1F2;
+  border: 1.5px solid #F43F5E;
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.booked-notice-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.booked-icon {
+  font-size: 1.8rem;
+}
+
+.booked-notice-header h4 {
+  font-family: var(--font-heading);
+  color: #9F1239;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.booked-tag {
+  display: inline-block;
+  background: #E11D48;
+  color: #FFFFFF;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.booked-notice-box p {
+  font-size: 0.85rem;
+  color: #881337;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+/* Manager Date Editor in Sidebar */
+.admin-date-editor-box {
+  background: #FFFFFF;
+  border: 2px dashed var(--gold-dark);
+  border-radius: 14px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 4px 14px rgba(142, 107, 56, 0.15);
+}
+
+.admin-editor-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.admin-editor-title span {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--royal-maroon);
+  letter-spacing: 0.5px;
+}
+
+.admin-editor-title small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.admin-btn-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pin-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* Register List Items */
+.register-card-item {
+  background: var(--bg-alt);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border-left: 4px solid var(--royal-maroon);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.register-card-left strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+}
+
+.register-card-left span {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.register-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}

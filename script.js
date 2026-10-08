@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTariffCalculator();
   init3DTilt();
   initMobileDrawer();
+  initManagerSystem();
 });
 
 /* ==========================================================================
@@ -141,7 +142,7 @@ function showHotspotInfo(type) {
 }
 
 /* ==========================================================================
-   3. INTERACTIVE SUBHA MUHURTHAM & AVAILABILITY CALENDAR
+   3. INTERACTIVE SUBHA MUHURTHAM & AVAILABILITY CALENDAR WITH MANAGER CONTROLS
    ========================================================================== */
 // Auspicious Telugu Wedding Subha Muhurtham dates for 2026-2027
 const subhaMuhurthamDates = {
@@ -174,6 +175,79 @@ const subhaMuhurthamDates = {
   "2027-02-18": { title: "Subha Muhurtham (Moola)", tithi: "Dwadashi / Moola", status: "muhurtham" },
   "2027-02-22": { title: "Subha Muhurtham (Uttarasadha)", tithi: "Dwitiya / Uttarasadha", status: "muhurtham" }
 };
+
+// Default Sample Booked Dates (Pre-seeded so owner sees how offline bookings prevent online conflicts)
+const DEFAULT_OFFLINE_BOOKINGS = {
+  "2026-11-20": {
+    customer: "K. Reddy Family Wedding",
+    phone: "9440400291",
+    slot: "Full Day 24-Hours",
+    advance: "₹30,000",
+    notes: "Booked offline at mandapam office",
+    status: "booked"
+  },
+  "2026-12-06": {
+    customer: "G. Purushotham Reddy Wedding",
+    phone: "6303414221",
+    slot: "Morning Muhurtham (05:00 AM - 02:00 PM)",
+    advance: "₹25,000",
+    notes: "Auspicious Sunday Muhurtham ceremony",
+    status: "booked"
+  }
+};
+
+function getOfflineBookings() {
+  try {
+    const raw = localStorage.getItem('slv_offline_bookings');
+    if (!raw) {
+      localStorage.setItem('slv_offline_bookings', JSON.stringify(DEFAULT_OFFLINE_BOOKINGS));
+      return DEFAULT_OFFLINE_BOOKINGS;
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    return DEFAULT_OFFLINE_BOOKINGS;
+  }
+}
+
+function saveOfflineBookingsStore(data) {
+  localStorage.setItem('slv_offline_bookings', JSON.stringify(data));
+  updateTotalBookingsBadge();
+  renderCalendar();
+  updateSelectedDateCard(selectedDateStr);
+}
+
+// Manager Authentication: PINs 6303, 0944, slv2026, 517418
+const VALID_PINS = ['6303', '0944', 'slv2026', '517418'];
+
+function isManagerLoggedIn() {
+  return localStorage.getItem('slv_manager_logged_in') === 'true';
+}
+
+function initManagerSystem() {
+  updateManagerUI();
+}
+
+function updateManagerUI() {
+  const isAuth = isManagerLoggedIn();
+  const bar = document.getElementById('managerAdminBar');
+  const pill = document.querySelector('.manager-login-pill');
+  const navBtn = document.querySelector('.nav-manager-btn');
+  const adminEditor = document.getElementById('adminDateEditor');
+
+  if (bar) bar.style.display = isAuth ? 'block' : 'none';
+  if (pill) pill.innerHTML = isAuth ? '👑 Manager Active' : '🔒 Manager Login';
+  if (navBtn) navBtn.innerHTML = isAuth ? '👑 Manager Active' : '🔒 Manager';
+  if (adminEditor) adminEditor.style.display = isAuth ? 'block' : 'none';
+
+  updateTotalBookingsBadge();
+}
+
+function updateTotalBookingsBadge() {
+  const bookings = getOfflineBookings();
+  const count = Object.values(bookings).filter(b => b.status === 'booked').length;
+  const countEl = document.getElementById('totalBookingsCount');
+  if (countEl) countEl.textContent = count;
+}
 
 let currentCalYear = 2026;
 let currentCalMonth = 10; // 0-indexed: 10 is November
@@ -240,6 +314,8 @@ function renderCalendar() {
   const lastDate = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
   const prevLastDate = new Date(currentCalYear, currentCalMonth, 0).getDate();
 
+  const offlineBookings = getOfflineBookings();
+
   // Prev month padding cells
   for (let x = firstDayIndex; x > 0; x--) {
     const dayCell = document.createElement('div');
@@ -256,6 +332,8 @@ function renderCalendar() {
     const dayOfWeek = new Date(currentCalYear, currentCalMonth, day).getDay();
     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
     const muhurthamInfo = subhaMuhurthamDates[fullDateKey];
+    const offlineBooking = offlineBookings[fullDateKey];
+    const isBooked = offlineBooking && offlineBooking.status === 'booked';
 
     // Filter check
     if (activeCalendarFilter === 'muhurtham' && !muhurthamInfo) {
@@ -272,7 +350,10 @@ function renderCalendar() {
 
     let statusHtml = '<span class="day-status-pill status-avail">Avail</span>';
 
-    if (muhurthamInfo) {
+    if (isBooked) {
+      dayCell.classList.add('is-booked');
+      statusHtml = '<span class="day-status-pill status-booked">Booked</span>';
+    } else if (muhurthamInfo) {
       dayCell.classList.add('is-muhurtham');
       if (muhurthamInfo.status === 'fast-filling') {
         dayCell.classList.add('fast-filling');
@@ -305,39 +386,291 @@ function updateSelectedDateCard(dateKey) {
   const text = document.getElementById('selectedDateText');
   const tithi = document.getElementById('selectedDateTithi');
 
+  const bookedNotice = document.getElementById('bookedDateNotice');
+  const bookedReason = document.getElementById('bookedReasonText');
+  const slotOptions = document.getElementById('availableSlotOptions');
+  const actionButtons = document.getElementById('availableDateActions');
+  const adminEditor = document.getElementById('adminDateEditor');
+  const adminLabel = document.getElementById('adminDateLabel');
+
   const d = new Date(dateKey);
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   const formatted = d.toLocaleDateString('en-IN', options);
 
   const muhurthamInfo = subhaMuhurthamDates[dateKey];
+  const offlineBookings = getOfflineBookings();
+  const currentBooking = offlineBookings[dateKey];
+  const isBooked = currentBooking && currentBooking.status === 'booked';
+  const isManager = isManagerLoggedIn();
 
   if (text) text.textContent = formatted;
+  if (adminLabel) adminLabel.textContent = `Managing Date: ${dateKey}`;
 
-  if (muhurthamInfo) {
+  // Configure Status Display based on Booked vs Available
+  if (isBooked) {
     if (badge) {
-      badge.textContent = "⭐ Subha Muhurtham Date";
-      badge.style.background = "#FDF0D5";
-      badge.style.color = "#8A6210";
+      badge.textContent = "⛔ BOOKED & UNAVAILABLE";
+      badge.style.background = "#FFE4E6";
+      badge.style.color = "#BE123C";
     }
     if (tithi) {
-      tithi.innerHTML = `<strong>${muhurthamInfo.title}</strong><br>${muhurthamInfo.tithi}. Status: Highly Auspicious & Filling Rapidly.`;
+      tithi.innerHTML = `<strong>Offline Reservation Confirmed</strong><br>This date is reserved for ${currentBooking.customer || 'a family event'}.`;
     }
+    if (bookedNotice) bookedNotice.style.display = 'block';
+    if (bookedReason) {
+      bookedReason.textContent = `This date (${formatted}) is confirmed and reserved for an event. Online bookings are closed to prevent double-booking.`;
+    }
+    if (slotOptions) slotOptions.style.display = 'none';
+    if (actionButtons) actionButtons.style.display = 'none';
   } else {
-    if (badge) {
-      badge.textContent = "Standard Available Date";
-      badge.style.background = "#E6F4EA";
-      badge.style.color = "#137333";
-    }
-    if (tithi) {
-      tithi.textContent = "Open for all family occasions, weddings, receptions, and birthday celebrations.";
+    if (bookedNotice) bookedNotice.style.display = 'none';
+    if (slotOptions) slotOptions.style.display = 'flex';
+    if (actionButtons) actionButtons.style.display = 'flex';
+
+    if (muhurthamInfo) {
+      if (badge) {
+        badge.textContent = "⭐ Subha Muhurtham Date";
+        badge.style.background = "#FDF0D5";
+        badge.style.color = "#8A6210";
+      }
+      if (tithi) {
+        tithi.innerHTML = `<strong>${muhurthamInfo.title}</strong><br>${muhurthamInfo.tithi}. Status: Highly Auspicious & Open for Booking.`;
+      }
+    } else {
+      if (badge) {
+        badge.textContent = "🟢 Standard Available Date";
+        badge.style.background = "#E6F4EA";
+        badge.style.color = "#137333";
+      }
+      if (tithi) {
+        tithi.textContent = "Open for all family occasions, weddings, receptions, and birthday celebrations.";
+      }
     }
   }
 
-  // Pre-fill modal input as well
+  // Pre-fill Manager Quick Editor if logged in
+  if (adminEditor) {
+    adminEditor.style.display = isManager ? 'block' : 'none';
+    const statusSelect = document.getElementById('adminStatusSelect');
+    const customerInput = document.getElementById('adminCustomerName');
+    const phoneInput = document.getElementById('adminCustomerPhone');
+
+    if (statusSelect) {
+      statusSelect.value = isBooked ? 'booked' : (currentBooking ? currentBooking.status : 'available');
+    }
+    if (customerInput) {
+      customerInput.value = currentBooking ? (currentBooking.customer || '') : '';
+    }
+    if (phoneInput) {
+      phoneInput.value = currentBooking ? (currentBooking.phone || '') : '';
+    }
+  }
+
+  // Pre-fill modal input
   const modalDate = document.getElementById('modalDate');
   if (modalDate) modalDate.value = dateKey;
   const formDate = document.getElementById('formDate');
   if (formDate) formDate.value = dateKey;
+  const offlineDate = document.getElementById('offlineDate');
+  if (offlineDate) offlineDate.value = dateKey;
+}
+
+function selectNextAvailableDate() {
+  const offlineBookings = getOfflineBookings();
+  const keys = Object.keys(subhaMuhurthamDates).sort();
+  for (const k of keys) {
+    if (k > selectedDateStr && (!offlineBookings[k] || offlineBookings[k].status !== 'booked')) {
+      selectedDateStr = k;
+      const d = new Date(k);
+      currentCalYear = d.getFullYear();
+      currentCalMonth = d.getMonth();
+      renderCalendar();
+      updateSelectedDateCard(k);
+      return;
+    }
+  }
+  alert("Please browse the calendar arrows to explore upcoming months for open dates.");
+}
+
+/* ==========================================================================
+   MANAGER ACTION HANDLERS & OFFLINE REGISTRATION
+   ========================================================================== */
+function openManagerLoginModal() {
+  const modal = document.getElementById('managerLoginModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeManagerLoginModal() {
+  const modal = document.getElementById('managerLoginModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+function handleManagerLogin(e) {
+  e.preventDefault();
+  const pin = document.getElementById('managerPin').value.trim();
+  if (VALID_PINS.includes(pin)) {
+    localStorage.setItem('slv_manager_logged_in', 'true');
+    closeManagerLoginModal();
+    updateManagerUI();
+    updateSelectedDateCard(selectedDateStr);
+    alert('Welcome, Venue Administrator! Manager controls are now active. You can edit any date or add offline bookings.');
+  } else {
+    alert('Incorrect PIN. Please use 6303 or 0944 (from venue contact numbers).');
+  }
+}
+
+function managerLogout() {
+  localStorage.removeItem('slv_manager_logged_in');
+  updateManagerUI();
+  updateSelectedDateCard(selectedDateStr);
+  alert('You have logged out of the Manager Portal.');
+}
+
+function openOfflineBookingModal() {
+  const modal = document.getElementById('offlineBookingModal');
+  const dateInput = document.getElementById('offlineDate');
+  if (dateInput && selectedDateStr) {
+    dateInput.value = selectedDateStr;
+  }
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeOfflineBookingModal() {
+  const modal = document.getElementById('offlineBookingModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+function saveOfflineBooking(e) {
+  e.preventDefault();
+  const date = document.getElementById('offlineDate').value;
+  const customer = document.getElementById('offlineCustomer').value.trim();
+  const phone = document.getElementById('offlinePhone').value.trim();
+  const slot = document.getElementById('offlineSlot').value;
+  const advance = document.getElementById('offlineAdvance').value.trim() || 'Advance Received';
+  const notes = document.getElementById('offlineNotes').value.trim() || 'Offline Booking';
+
+  if (!date || !customer) {
+    alert('Please enter date and customer name.');
+    return;
+  }
+
+  const bookings = getOfflineBookings();
+  bookings[date] = {
+    customer,
+    phone,
+    slot,
+    advance,
+    notes,
+    status: 'booked'
+  };
+
+  saveOfflineBookingsStore(bookings);
+  closeOfflineBookingModal();
+  alert(`Success! Date ${date} is now marked as BOOKED for "${customer}". Online bookings for this date are now blocked.`);
+}
+
+function saveAdminDateChange() {
+  const dateKey = selectedDateStr;
+  const status = document.getElementById('adminStatusSelect').value;
+  const customer = document.getElementById('adminCustomerName').value.trim() || 'Offline Party';
+  const phone = document.getElementById('adminCustomerPhone').value.trim();
+
+  const bookings = getOfflineBookings();
+
+  if (status === 'available') {
+    delete bookings[dateKey];
+  } else {
+    bookings[dateKey] = {
+      customer,
+      phone,
+      slot: 'Full Day',
+      advance: 'Token Paid',
+      status: status
+    };
+  }
+
+  saveOfflineBookingsStore(bookings);
+  alert(`Updated: Date ${dateKey} is now marked as ${status.toUpperCase()}!`);
+}
+
+function clearAdminDateBooking() {
+  const dateKey = selectedDateStr;
+  const bookings = getOfflineBookings();
+  delete bookings[dateKey];
+  saveOfflineBookingsStore(bookings);
+  alert(`Date ${dateKey} is now released and AVAILABLE for online booking!`);
+}
+
+function openBookingRegisterModal() {
+  const modal = document.getElementById('bookingRegisterModal');
+  renderBookingRegister();
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeBookingRegisterModal() {
+  const modal = document.getElementById('bookingRegisterModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+function renderBookingRegister() {
+  const container = document.getElementById('bookingRegisterContainer');
+  if (!container) return;
+
+  const bookings = getOfflineBookings();
+  const entries = Object.entries(bookings).sort(([a], [b]) => a.localeCompare(b));
+
+  if (entries.length === 0) {
+    container.innerHTML = '<p style="text-align:center; padding: 20px; color: var(--text-muted);">No offline bookings recorded yet.</p>';
+    return;
+  }
+
+  let html = '';
+  entries.forEach(([date, b]) => {
+    html += `
+      <div class="register-card-item">
+        <div class="register-card-left">
+          <strong>📅 ${date} — ${b.customer || 'Reserved'}</strong>
+          <span>Slot: ${b.slot || 'Full Day'} • Phone: ${b.phone || 'N/A'} • Advance: ${b.advance || 'N/A'}</span>
+          <small style="color: var(--text-muted);">${b.notes || ''}</small>
+        </div>
+        <div class="register-card-right">
+          <span class="status-booked">${b.status.toUpperCase()}</span>
+          <button class="btn btn-sm btn-outline" onclick="deleteBooking('${date}')" style="padding: 4px 8px; font-size: 0.72rem; color: #E11D48;">
+            🗑️ Release Date
+          </button>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function deleteBooking(dateKey) {
+  if (confirm(`Are you sure you want to release ${dateKey} and make it available for online bookings again?`)) {
+    const bookings = getOfflineBookings();
+    delete bookings[dateKey];
+    saveOfflineBookingsStore(bookings);
+    renderBookingRegister();
+  }
 }
 
 function getSelectedTimingSlot() {
@@ -346,6 +679,11 @@ function getSelectedTimingSlot() {
 }
 
 function inquireSelectedDateViaWhatsApp() {
+  const offlineBookings = getOfflineBookings();
+  if (offlineBookings[selectedDateStr] && offlineBookings[selectedDateStr].status === 'booked') {
+    alert('This date is already booked! Please select another date.');
+    return;
+  }
   const slot = getSelectedTimingSlot();
   const d = new Date(selectedDateStr);
   const dateFormatted = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -355,8 +693,15 @@ function inquireSelectedDateViaWhatsApp() {
 }
 
 function openBookingModalWithSelectedDate() {
+  const offlineBookings = getOfflineBookings();
+  if (offlineBookings[selectedDateStr] && offlineBookings[selectedDateStr].status === 'booked') {
+    alert('This date is already booked! Please select another date.');
+    return;
+  }
   const modalDate = document.getElementById('modalDate');
   if (modalDate) modalDate.value = selectedDateStr;
+  openBookingModal();
+}
   openBookingModal();
 }
 
