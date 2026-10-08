@@ -702,8 +702,6 @@ function openBookingModalWithSelectedDate() {
   if (modalDate) modalDate.value = selectedDateStr;
   openBookingModal();
 }
-  openBookingModal();
-}
 
 /* ==========================================================================
    4. PHOTO GALLERY & LIGHTBOX
