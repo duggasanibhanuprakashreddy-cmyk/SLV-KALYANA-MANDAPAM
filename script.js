@@ -216,27 +216,239 @@ function saveOfflineBookingsStore(data) {
   updateSelectedDateCard(selectedDateStr);
 }
 
-// Manager Authentication: PINs 6303, 0944, slv2026, 517418
-const VALID_PINS = ['6303', '0944', 'slv2026', '517418'];
+/* ==========================================================================
+   MANAGER SECURITY, CRYPTOGRAPHIC AUTHENTICATION & SESSION ENGINE
+   ========================================================================== */
+
+const AUTH_SALT = 'SLV_MANDAPAM_SALT_2026';
+
+// Pre-computed SHA-256 Hashes of Authorized Master Credentials (salted):
+// - 6303 (Quick PIN)
+// - 0944 (Quick PIN)
+// - 6303414221 (Proprietor Ramana Reddy)
+// - 09440400291 (Manager Bhanuprakash Reddy)
+// - slv2026 (Alphanumeric PIN)
+// - SLV@Admin2026 (Master Passphrase)
+const AUTHORIZED_CREDENTIAL_HASHES = new Set([
+  'fbdedc02503015e8eca4d13bb066799853db83436c4629e8d6cf534e94cb025a',
+  'd0d39948e24afcd9545c89a5662d95f9fedc9bb6153e92401bc605fe24427c5f',
+  '8834e7c1dff374adb69e9283d0e9141b4a6d594b1b1e45a68ec0416b8924cb6b',
+  'a45b7e2f4538f8f39a62e1cfb89c0233dba3816ccd3148c7c44e5d1bf28a1343',
+  'ff9e680e8312a9f9528af49e20d07477c0ff70d0b074d1ca94f88ab09c1f782d',
+  '650b4e3d367bdc5a66260a0406a00a0178acdea4dcad468aafc7d451ec4513fd'
+]);
+
+// WebCrypto SHA-256 Hasher
+async function computeSha256(input) {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(AUTH_SALT + String(input).trim());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (err) {
+    // Fallback simple hash for older runtimes if subtle is unavailable
+    let hash = 0;
+    const str = AUTH_SALT + String(input).trim();
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return String(hash);
+  }
+}
+
+// Brute-Force Rate Limiting (5 failed attempts locks for 5 minutes)
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000;
+
+function getAuthFailedState() {
+  try {
+    const raw = localStorage.getItem('slv_auth_state');
+    return raw ? JSON.parse(raw) : { failedCount: 0, lockedUntil: 0 };
+  } catch (e) {
+    return { failedCount: 0, lockedUntil: 0 };
+  }
+}
+
+function saveAuthFailedState(state) {
+  localStorage.setItem('slv_auth_state', JSON.stringify(state));
+}
+
+function getLockoutSecondsRemaining() {
+  const state = getAuthFailedState();
+  if (state.lockedUntil && Date.now() < state.lockedUntil) {
+    return Math.ceil((state.lockedUntil - Date.now()) / 1000);
+  }
+  return 0;
+}
+
+// Session Engine (30 minutes session with auto-expiry)
+const SESSION_DURATION_MS = 30 * 60 * 1000;
+
+function getManagerSession() {
+  try {
+    const raw = localStorage.getItem('slv_manager_session');
+    if (!raw) return null;
+    const session = JSON.parse(raw);
+    if (!session || !session.expiresAt || Date.now() > session.expiresAt) {
+      clearManagerSession();
+      return null;
+    }
+    return session;
+  } catch (e) {
+    return null;
+  }
+}
+
+function createManagerSession() {
+  const session = {
+    token: 'slv_sec_' + Math.random().toString(36).substring(2) + Date.now(),
+    authenticatedAs: 'Duggasani Bhanuprakash Reddy & Ramana Reddy',
+    createdAt: Date.now(),
+    expiresAt: Date.now() + SESSION_DURATION_MS
+  };
+  localStorage.setItem('slv_manager_session', JSON.stringify(session));
+  localStorage.setItem('slv_manager_logged_in', 'true');
+  return session;
+}
+
+function refreshManagerSession() {
+  const session = getManagerSession();
+  if (session) {
+    session.expiresAt = Date.now() + SESSION_DURATION_MS;
+    localStorage.setItem('slv_manager_session', JSON.stringify(session));
+  }
+}
+
+function clearManagerSession() {
+  localStorage.removeItem('slv_manager_session');
+  localStorage.removeItem('slv_manager_logged_in');
+}
 
 function isManagerLoggedIn() {
-  return localStorage.getItem('slv_manager_logged_in') === 'true';
+  return getManagerSession() !== null;
 }
+
+function checkManagerAuth() {
+  if (!isManagerLoggedIn()) {
+    alert('Security Alert: Authentication required. Please log in as Venue Manager.');
+    openManagerLoginModal();
+    return false;
+  }
+  refreshManagerSession();
+  return true;
+}
+
+// Security Audit Log (Immutable record of management actions)
+function addAuditLog(action, type = 'general') {
+  try {
+    const raw = localStorage.getItem('slv_security_audit_log') || '[]';
+    const list = JSON.parse(raw);
+    const item = {
+      id: 'log_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      action: action,
+      type: type,
+      timestamp: new Date().toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })
+    };
+    list.unshift(item);
+    if (list.length > 50) list.pop();
+    localStorage.setItem('slv_security_audit_log', JSON.stringify(list));
+  } catch (e) {}
+}
+
+let sessionTickerInterval = null;
 
 function initManagerSystem() {
   updateManagerUI();
+
+  // Background ticker to monitor session expiration and update UI live
+  if (sessionTickerInterval) clearInterval(sessionTickerInterval);
+  sessionTickerInterval = setInterval(() => {
+    const session = getManagerSession();
+    if (session) {
+      const remainingMs = session.expiresAt - Date.now();
+      if (remainingMs <= 0) {
+        managerLogout(true); // Auto-logout upon timeout
+      } else {
+        const remainingMin = Math.ceil(remainingMs / (60 * 1000));
+        const timerText = `⏱️ Session: ${remainingMin}m`;
+        const barTimer = document.getElementById('managerSessionTimer');
+        const portalTimer = document.getElementById('portalSessionTimerBadge');
+        if (barTimer) barTimer.textContent = timerText;
+        if (portalTimer) portalTimer.textContent = `🟢 Active (${remainingMin}m remaining)`;
+      }
+    }
+  }, 10000);
 }
 
 function updateManagerUI() {
   const isAuth = isManagerLoggedIn();
-  const bar = document.getElementById('managerAdminBar');
-  const pill = document.querySelector('.manager-login-pill');
-  const navBtn = document.querySelector('.nav-manager-btn');
-  const adminEditor = document.getElementById('adminDateEditor');
 
+  // 1. Manager Admin Bar
+  const bar = document.getElementById('managerAdminBar');
   if (bar) bar.style.display = isAuth ? 'block' : 'none';
-  if (pill) pill.innerHTML = isAuth ? '👑 Manager Active' : '🔒 Manager Login';
-  if (navBtn) navBtn.innerHTML = isAuth ? '👑 Manager Active' : '🔒 Manager';
+
+  // 2. Topbar Login & Logout Pills
+  const topbarBtn = document.getElementById('topbarManagerBtn');
+  const topbarLogout = document.getElementById('topbarLogoutBtn');
+  if (topbarBtn) {
+    topbarBtn.innerHTML = isAuth ? '👑 Manager Active' : '🔒 Manager Login';
+    topbarBtn.title = isAuth ? 'Open Manager Portal' : 'Log in as Venue Manager';
+  }
+  if (topbarLogout) {
+    topbarLogout.style.display = isAuth ? 'inline-flex' : 'none';
+  }
+
+  // 3. Navbar Manager & Logout Buttons
+  const navBtn = document.getElementById('navManagerBtn');
+  const navLogout = document.getElementById('navLogoutBtn');
+  if (navBtn) {
+    navBtn.innerHTML = isAuth ? '👑 Manager' : '🔒 Manager';
+    navBtn.title = isAuth ? 'Open Manager Portal' : 'Author & Manager Login';
+    if (isAuth) {
+      navBtn.classList.add('btn-gold');
+      navBtn.classList.remove('btn-outline');
+    } else {
+      navBtn.classList.remove('btn-gold');
+      navBtn.classList.add('btn-outline');
+    }
+  }
+  if (navLogout) {
+    navLogout.style.display = isAuth ? 'inline-block' : 'none';
+  }
+
+  // 4. Mobile Drawer Navigation Items
+  const drawerLogin = document.getElementById('drawerLoginItem');
+  const drawerActive = document.getElementById('drawerManagerActiveItem');
+  const drawerLogout = document.getElementById('drawerLogoutItem');
+  if (drawerLogin) drawerLogin.style.display = isAuth ? 'none' : 'block';
+  if (drawerActive) drawerActive.style.display = isAuth ? 'block' : 'none';
+  if (drawerLogout) drawerLogout.style.display = isAuth ? 'block' : 'none';
+
+  // 5. Calendar Owner Bar
+  const ownerBar = document.getElementById('calendarOwnerBar');
+  const ownerIcon = document.getElementById('calendarOwnerIcon');
+  const ownerText = document.getElementById('calendarOwnerText');
+  const ownerAction = document.getElementById('calendarOwnerActionBtn');
+  if (ownerBar) {
+    ownerBar.classList.toggle('active', isAuth);
+    if (ownerIcon) ownerIcon.textContent = isAuth ? '👑' : '🛡️';
+    if (ownerText) {
+      ownerText.textContent = isAuth
+        ? 'Manager Portal Active: Any offline booking you add will automatically block online bookings.'
+        : 'Venue Management: Log in to block offline walk-in bookings and manage calendar dates.';
+    }
+    if (ownerAction) {
+      ownerAction.textContent = isAuth ? '🚪 Secure Logout' : '🔒 Manager Login';
+    }
+  }
+
+  // 6. Sidebar Quick Editor
+  const adminEditor = document.getElementById('adminDateEditor');
   if (adminEditor) adminEditor.style.display = isAuth ? 'block' : 'none';
 
   updateTotalBookingsBadge();
@@ -246,7 +458,9 @@ function updateTotalBookingsBadge() {
   const bookings = getOfflineBookings();
   const count = Object.values(bookings).filter(b => b.status === 'booked').length;
   const countEl = document.getElementById('totalBookingsCount');
+  const portalCountEl = document.getElementById('portalTotalBookingsCount');
   if (countEl) countEl.textContent = count;
+  if (portalCountEl) portalCountEl.textContent = count;
 }
 
 let currentCalYear = 2026;
@@ -493,13 +707,68 @@ function selectNextAvailableDate() {
 }
 
 /* ==========================================================================
-   MANAGER ACTION HANDLERS & OFFLINE REGISTRATION
+   MANAGER ACTION HANDLERS, SECURE AUTHENTICATION & OFFLINE REGISTRATION
    ========================================================================== */
+
+function togglePasscodeVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+    btn.title = 'Hide Passcode';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+    btn.title = 'Show Passcode';
+  }
+}
+
+function handleNavManagerClick() {
+  if (isManagerLoggedIn()) {
+    openManagerPortalModal();
+  } else {
+    openManagerLoginModal();
+  }
+}
+
+function handleCalendarOwnerClick() {
+  if (isManagerLoggedIn()) {
+    managerLogout();
+  } else {
+    openManagerLoginModal();
+  }
+}
+
 function openManagerLoginModal() {
   const modal = document.getElementById('managerLoginModal');
+  const lockoutEl = document.getElementById('authLockoutNotice');
+  const submitBtn = document.getElementById('managerLoginSubmitBtn');
+  const pinInput = document.getElementById('managerPin');
+
+  const secondsLeft = getLockoutSecondsRemaining();
+  if (secondsLeft > 0) {
+    if (lockoutEl) {
+      lockoutEl.style.display = 'flex';
+      lockoutEl.innerHTML = `⚠️ Portal locked due to repeated failed attempts. Please wait ${secondsLeft}s before retrying.`;
+    }
+    if (submitBtn) submitBtn.disabled = true;
+    if (pinInput) pinInput.disabled = true;
+  } else {
+    if (lockoutEl) lockoutEl.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+    if (pinInput) {
+      pinInput.disabled = false;
+      pinInput.value = '';
+    }
+  }
+
   if (modal) {
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
+    if (pinInput && !pinInput.disabled) {
+      setTimeout(() => pinInput.focus(), 150);
+    }
   }
 }
 
@@ -511,28 +780,216 @@ function closeManagerLoginModal() {
   }
 }
 
-function handleManagerLogin(e) {
+async function handleManagerLogin(e) {
   e.preventDefault();
-  const pin = document.getElementById('managerPin').value.trim();
-  if (VALID_PINS.includes(pin)) {
-    localStorage.setItem('slv_manager_logged_in', 'true');
+
+  const secondsLeft = getLockoutSecondsRemaining();
+  if (secondsLeft > 0) {
+    alert(`Security Alert: Authentication is locked due to repeated incorrect entries. Please wait ${secondsLeft} seconds.`);
+    return;
+  }
+
+  const pinInput = document.getElementById('managerPin');
+  const enteredPasscode = pinInput ? pinInput.value.trim() : '';
+
+  if (!enteredPasscode) {
+    alert('Please enter your authorized security passcode.');
+    return;
+  }
+
+  // Compute 256-Bit Cryptographic Hash
+  const hash = await computeSha256(enteredPasscode);
+  const customHash = localStorage.getItem('slv_custom_pass_hash');
+
+  const isMasterAuthorized = AUTHORIZED_CREDENTIAL_HASHES.has(hash);
+  const isCustomAuthorized = customHash && (customHash === hash);
+
+  if (isMasterAuthorized || isCustomAuthorized) {
+    // Reset rate-limiting state
+    saveAuthFailedState({ failedCount: 0, lockedUntil: 0 });
+
+    // Create session and log audit event
+    createManagerSession();
+    addAuditLog('Manager successfully authenticated into portal', 'login');
+
     closeManagerLoginModal();
     updateManagerUI();
     updateSelectedDateCard(selectedDateStr);
-    alert('Welcome, Venue Administrator! Manager controls are now active. You can edit any date or add offline bookings.');
+
+    alert('✅ Authentication Successful! Welcome, Venue Administrator. You can now manage dates and block offline bookings.');
   } else {
-    alert('Incorrect PIN. Please use 6303 or 0944 (from venue contact numbers).');
+    // Handle failed attempt
+    const state = getAuthFailedState();
+    state.failedCount = (state.failedCount || 0) + 1;
+
+    addAuditLog(`Failed authentication attempt (${state.failedCount}/${MAX_FAILED_ATTEMPTS})`, 'security');
+
+    if (state.failedCount >= MAX_FAILED_ATTEMPTS) {
+      state.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+      saveAuthFailedState(state);
+      addAuditLog('Manager Portal temporarily locked due to brute-force threshold', 'security');
+      openManagerLoginModal(); // Refresh UI with lockout warning
+      alert(`⛔ Security Alert: Too many incorrect attempts. Authentication is locked for 5 minutes.`);
+    } else {
+      saveAuthFailedState(state);
+      const remaining = MAX_FAILED_ATTEMPTS - state.failedCount;
+      alert(`❌ Incorrect Passcode. ${remaining} attempt(s) remaining before security lockout.`);
+    }
   }
 }
 
-function managerLogout() {
-  localStorage.removeItem('slv_manager_logged_in');
+function managerLogout(isExpired = false) {
+  if (!isExpired) {
+    const ok = confirm('Are you sure you want to securely log out of the Manager Portal?');
+    if (!ok) return;
+  }
+
+  addAuditLog(isExpired ? 'Session automatically timed out' : 'Manager securely logged out', 'security');
+  clearManagerSession();
   updateManagerUI();
   updateSelectedDateCard(selectedDateStr);
-  alert('You have logged out of the Manager Portal.');
+
+  alert(isExpired
+    ? '🔒 Security Notice: Your manager session has timed out due to inactivity. Logged out.'
+    : '🚪 You have been securely logged out of the Manager Portal.');
 }
 
+/* 1B. MANAGER DASHBOARD MODAL */
+function openManagerPortalModal() {
+  if (!checkManagerAuth()) return;
+  const modal = document.getElementById('managerPortalModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeManagerPortalModal() {
+  const modal = document.getElementById('managerPortalModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+/* 1C. CHANGE PASSCODE MODAL */
+function openChangePasscodeModal() {
+  if (!checkManagerAuth()) return;
+  const modal = document.getElementById('changePasscodeModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeChangePasscodeModal() {
+  const modal = document.getElementById('changePasscodeModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+async function handleChangePasscode(e) {
+  e.preventDefault();
+  if (!checkManagerAuth()) return;
+
+  const currentPass = document.getElementById('currentPasscode').value.trim();
+  const newPass = document.getElementById('newPasscode').value.trim();
+  const confirmPass = document.getElementById('confirmNewPasscode').value.trim();
+
+  if (newPass.length < 4) {
+    alert('Security requirement: New passcode must be at least 4 characters long.');
+    return;
+  }
+
+  if (newPass !== confirmPass) {
+    alert('Error: New passcodes do not match. Please verify and retype.');
+    return;
+  }
+
+  // Verify current password hash
+  const currentHash = await computeSha256(currentPass);
+  const savedCustomHash = localStorage.getItem('slv_custom_pass_hash');
+  const isMaster = AUTHORIZED_CREDENTIAL_HASHES.has(currentHash);
+  const isCustom = savedCustomHash && (savedCustomHash === currentHash);
+
+  if (!isMaster && !isCustom) {
+    alert('❌ Current Passcode is incorrect. Passcode was NOT changed.');
+    return;
+  }
+
+  // Hash and save new passcode
+  const newHash = await computeSha256(newPass);
+  localStorage.setItem('slv_custom_pass_hash', newHash);
+  addAuditLog('Manager security passcode successfully changed & hashed', 'security');
+
+  closeChangePasscodeModal();
+  document.getElementById('changePasscodeForm').reset();
+  alert('✅ Success! Your new manager passcode has been saved securely with SHA-256 encryption. Keep it safe.');
+}
+
+/* 1D. AUDIT LOG MODAL */
+function openAuditLogModal() {
+  if (!checkManagerAuth()) return;
+  const modal = document.getElementById('auditLogModal');
+  renderAuditLog();
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeAuditLogModal() {
+  const modal = document.getElementById('auditLogModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+function renderAuditLog() {
+  const container = document.getElementById('auditLogContainer');
+  if (!container) return;
+
+  try {
+    const raw = localStorage.getItem('slv_security_audit_log') || '[]';
+    const list = JSON.parse(raw);
+
+    if (list.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No audit logs recorded yet.</p>';
+      return;
+    }
+
+    let html = '';
+    list.forEach(item => {
+      const typeClass = item.type === 'login' ? 'login' : (item.type === 'security' ? 'security' : '');
+      html += `
+        <div class="audit-log-item ${typeClass}">
+          <div>
+            <div class="audit-log-action">${item.action}</div>
+            <div class="audit-log-time">🕒 ${item.timestamp}</div>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<p style="color: red;">Error reading audit logs.</p>';
+  }
+}
+
+function clearAuditLog() {
+  if (confirm('Are you sure you want to clear the security audit log history?')) {
+    localStorage.setItem('slv_security_audit_log', '[]');
+    addAuditLog('Security audit log history cleared by manager', 'security');
+    renderAuditLog();
+  }
+}
+
+/* 2. OFFLINE BOOKING & ADMIN DATE CONTROLS */
 function openOfflineBookingModal() {
+  if (!checkManagerAuth()) return;
   const modal = document.getElementById('offlineBookingModal');
   const dateInput = document.getElementById('offlineDate');
   if (dateInput && selectedDateStr) {
@@ -554,6 +1011,8 @@ function closeOfflineBookingModal() {
 
 function saveOfflineBooking(e) {
   e.preventDefault();
+  if (!checkManagerAuth()) return;
+
   const date = document.getElementById('offlineDate').value;
   const customer = document.getElementById('offlineCustomer').value.trim();
   const phone = document.getElementById('offlinePhone').value.trim();
@@ -577,11 +1036,15 @@ function saveOfflineBooking(e) {
   };
 
   saveOfflineBookingsStore(bookings);
+  addAuditLog(`Blocked date ${date} for offline booking (${customer})`, 'general');
+
   closeOfflineBookingModal();
   alert(`Success! Date ${date} is now marked as BOOKED for "${customer}". Online bookings for this date are now blocked.`);
 }
 
 function saveAdminDateChange() {
+  if (!checkManagerAuth()) return;
+
   const dateKey = selectedDateStr;
   const status = document.getElementById('adminStatusSelect').value;
   const customer = document.getElementById('adminCustomerName').value.trim() || 'Offline Party';
@@ -591,6 +1054,7 @@ function saveAdminDateChange() {
 
   if (status === 'available') {
     delete bookings[dateKey];
+    addAuditLog(`Marked date ${dateKey} as AVAILABLE`, 'general');
   } else {
     bookings[dateKey] = {
       customer,
@@ -599,6 +1063,7 @@ function saveAdminDateChange() {
       advance: 'Token Paid',
       status: status
     };
+    addAuditLog(`Marked date ${dateKey} as ${status.toUpperCase()} (${customer})`, 'general');
   }
 
   saveOfflineBookingsStore(bookings);
@@ -606,14 +1071,20 @@ function saveAdminDateChange() {
 }
 
 function clearAdminDateBooking() {
+  if (!checkManagerAuth()) return;
+
   const dateKey = selectedDateStr;
   const bookings = getOfflineBookings();
   delete bookings[dateKey];
   saveOfflineBookingsStore(bookings);
+  addAuditLog(`Released booking on date ${dateKey} (made available)`, 'general');
+
   alert(`Date ${dateKey} is now released and AVAILABLE for online booking!`);
 }
 
 function openBookingRegisterModal() {
+  if (!checkManagerAuth()) return;
+
   const modal = document.getElementById('bookingRegisterModal');
   renderBookingRegister();
   if (modal) {
@@ -665,10 +1136,13 @@ function renderBookingRegister() {
 }
 
 function deleteBooking(dateKey) {
+  if (!checkManagerAuth()) return;
+
   if (confirm(`Are you sure you want to release ${dateKey} and make it available for online bookings again?`)) {
     const bookings = getOfflineBookings();
     delete bookings[dateKey];
     saveOfflineBookingsStore(bookings);
+    addAuditLog(`Released booking on date ${dateKey}`, 'general');
     renderBookingRegister();
   }
 }

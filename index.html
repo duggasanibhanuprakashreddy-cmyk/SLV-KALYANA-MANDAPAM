@@ -68,7 +68,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="styles.css?v=2.0.1">
+  <link rel="stylesheet" href="styles.css?v=2.1.0">
 </head>
 <body class="lighting-twilight">
 
@@ -95,8 +95,11 @@
         <a href="tel:6303414221" class="topbar-contact">
           <span class="icon">📱</span> 6303414221
         </a>
-        <button class="topbar-pill manager-login-pill" onclick="openManagerLoginModal()" title="Author / Manager Admin Mode">
+        <button class="topbar-pill manager-login-pill" id="topbarManagerBtn" onclick="handleNavManagerClick()" title="Author / Manager Secure Portal">
           🔒 Manager Login
+        </button>
+        <button class="topbar-pill logout-pill" id="topbarLogoutBtn" onclick="managerLogout()" title="Secure Logout" style="display: none;">
+          🚪 Logout
         </button>
       </div>
     </div>
@@ -106,18 +109,25 @@
   <div class="manager-admin-bar" id="managerAdminBar" style="display: none;">
     <div class="container manager-bar-content">
       <div class="manager-info">
-        <span class="badge-role">👑 AUTHOR / MANAGER PORTAL ACTIVE</span>
-        <span class="manager-welcome">Welcome, Duggasani Bhanuprakash Reddy & Ramana Reddy</span>
+        <span class="badge-role">👑 VENUE MANAGER PORTAL</span>
+        <span class="manager-welcome" id="managerWelcomeText">Authorized: Duggasani Bhanuprakash Reddy & Ramana Reddy</span>
+        <span class="session-timer-badge" id="managerSessionTimer" title="Session auto-lock countdown">⏱️ Session: 30m</span>
       </div>
       <div class="manager-actions">
         <button class="btn btn-sm btn-gold" onclick="openOfflineBookingModal()">
-          ➕ Block Date (Offline Booking)
+          ➕ Block Date (Offline)
         </button>
         <button class="btn btn-sm btn-glass" onclick="openBookingRegisterModal()">
-          📋 View Booked Dates (<span id="totalBookingsCount">0</span>)
+          📋 Booked Dates (<span id="totalBookingsCount">0</span>)
         </button>
-        <button class="btn btn-sm btn-outline" onclick="managerLogout()">
-          🚪 Logout
+        <button class="btn btn-sm btn-glass" onclick="openChangePasscodeModal()">
+          🔑 Change Passcode
+        </button>
+        <button class="btn btn-sm btn-glass" onclick="openAuditLogModal()">
+          📜 Audit Log
+        </button>
+        <button class="btn btn-sm btn-outline nav-logout-btn" onclick="managerLogout()">
+          🚪 Secure Logout
         </button>
       </div>
     </div>
@@ -183,9 +193,14 @@
           <span>Book Venue</span>
         </button>
 
-        <button class="btn btn-outline nav-manager-btn" onclick="openManagerLoginModal()" title="Author & Manager Mode">
-          🔒 Manager
-        </button>
+        <div class="manager-nav-group" id="navManagerGroup">
+          <button class="btn btn-outline nav-manager-btn" id="navManagerBtn" onclick="handleNavManagerClick()" title="Author & Manager Secure Mode">
+            🔒 Manager
+          </button>
+          <button class="btn btn-outline nav-logout-btn" id="navLogoutBtn" onclick="managerLogout()" title="Logout from Manager Portal" style="display: none;">
+            🚪 Logout
+          </button>
+        </div>
 
         <!-- Mobile Hamburger Toggle -->
         <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle navigation menu">
@@ -202,7 +217,9 @@
       </div>
       <ul class="mobile-nav-links">
         <li><a href="#about" class="drawer-link">About Venue</a></li>
-        <li><a href="javascript:void(0)" onclick="openManagerLoginModal();" class="drawer-link" style="color: var(--royal-maroon); font-weight: 700;">🔒 Manager Login (Edit Dates)</a></li>
+        <li id="drawerLoginItem"><a href="javascript:void(0)" onclick="openManagerLoginModal();" class="drawer-link" style="color: var(--royal-maroon); font-weight: 700;">🔒 Manager Login (Edit Dates)</a></li>
+        <li id="drawerManagerActiveItem" style="display: none;"><a href="javascript:void(0)" onclick="openManagerPortalModal();" class="drawer-link" style="color: var(--royal-maroon); font-weight: 700;">👑 Manager Portal (Active)</a></li>
+        <li id="drawerLogoutItem" style="display: none;"><a href="javascript:void(0)" onclick="managerLogout();" class="drawer-link" style="color: #E11D48; font-weight: 700;">🚪 Logout (Exit Manager)</a></li>
         <li><a href="#capacities" class="drawer-link">Hall Capacities (500/500)</a></li>
         <li><a href="#lighting-experience" class="drawer-link">3D Lighting Showcase</a></li>
         <li><a href="#calendar" class="drawer-link">Muhurtham Calendar</a></li>
@@ -618,6 +635,19 @@
         </div>
 
         <div class="calendar-wrapper-card">
+          <!-- Calendar Owner Status & Quick Login/Logout Bar -->
+          <div class="calendar-owner-bar" id="calendarOwnerBar">
+            <div class="owner-bar-left">
+              <span id="calendarOwnerIcon">🛡️</span>
+              <span id="calendarOwnerText">Venue Management: Log in to block offline walk-in bookings and manage calendar dates.</span>
+            </div>
+            <div class="owner-bar-right">
+              <button class="owner-bar-btn" id="calendarOwnerActionBtn" onclick="handleCalendarOwnerClick()">
+                🔒 Manager Login
+              </button>
+            </div>
+          </div>
+
           <!-- Calendar Header & Navigation Controls -->
           <div class="calendar-top-bar">
             <div class="month-selector">
@@ -1512,27 +1542,129 @@
        AUTHOR / MANAGER ADMINISTRATION MODALS
        ========================================================================== -->
 
-  <!-- 1. MANAGER LOGIN AUTHENTICATION MODAL -->
+  <!-- 1. SECURE MANAGER LOGIN AUTHENTICATION MODAL -->
   <div class="modal-overlay" id="managerLoginModal" aria-hidden="true">
     <div class="modal-card">
       <button class="modal-close" onclick="closeManagerLoginModal()" aria-label="Close dialog">&times;</button>
       <div class="modal-header">
-        <span class="modal-badge">VENUE ADMINISTRATION ACCESS</span>
-        <h3>Author & Manager Login</h3>
-        <p>Restricted access for <strong>Ramana Reddy</strong> & <strong>Duggasani Bhanuprakash Reddy</strong> to block offline dates and manage availability.</p>
+        <span class="modal-badge">🛡️ VENUE SECURITY & AUTHENTICATION</span>
+        <h3>Author & Manager Secure Portal</h3>
+        <p>Restricted access for <strong>Ramana Reddy</strong> & <strong>Duggasani Bhanuprakash Reddy</strong> to manage dates and offline bookings.</p>
       </div>
       <form id="managerLoginForm" onsubmit="handleManagerLogin(event)">
         <div class="form-group">
-          <label for="managerPin">Enter Manager Passcode / PIN *</label>
-          <input type="password" id="managerPin" required placeholder="Enter PIN (e.g. 6303)" class="form-control" autocomplete="off">
-          <small class="pin-hint">💡 Default PIN: <code>6303</code> or <code>0944</code> (From venue phone numbers)</small>
+          <label for="managerPin">Authorized Security Passcode *</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="managerPin" required placeholder="Enter authorized security passcode" class="form-control" autocomplete="current-password">
+            <button type="button" class="btn-toggle-visibility" onclick="togglePasscodeVisibility('managerPin', this)" aria-label="Toggle passcode visibility" title="Show/Hide Passcode">👁️</button>
+          </div>
+          <div id="authLockoutNotice" class="auth-lockout-alert" style="display: none;"></div>
+          <small class="security-note">🔒 Protected by 256-Bit Cryptographic Hashing & Rate-Limiting. Authorized management only.</small>
         </div>
         <div class="modal-button-group">
-          <button type="submit" class="btn btn-primary w-full">
-            <span>🔓 Authenticate & Unlock Manager Portal</span>
+          <button type="submit" class="btn btn-primary w-full" id="managerLoginSubmitBtn">
+            <span>🔓 Authenticate & Unlock Portal</span>
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- 1B. MANAGER ACTIVE DASHBOARD MODAL -->
+  <div class="modal-overlay" id="managerPortalModal" aria-hidden="true">
+    <div class="modal-card" style="max-width: 580px;">
+      <button class="modal-close" onclick="closeManagerPortalModal()" aria-label="Close dialog">&times;</button>
+      <div class="modal-header">
+        <span class="modal-badge">👑 ACTIVE MANAGEMENT SESSION</span>
+        <h3>SLV Venue Manager Portal</h3>
+        <p>Logged in as: <strong>Duggasani Bhanuprakash Reddy & Ramana Reddy</strong></p>
+      </div>
+      <div style="background: var(--bg-alt); padding: 14px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.88rem; font-weight: 600; color: var(--text-dark);">Session Status:</span>
+        <span class="session-timer-badge" id="portalSessionTimerBadge" style="background: #10B981; color: white;">🟢 Active (30m auto-lock)</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+        <button class="btn btn-gold" onclick="closeManagerPortalModal(); openOfflineBookingModal();" style="padding: 12px 14px; font-size: 0.85rem;">
+          ➕ Block Date (Offline)
+        </button>
+        <button class="btn btn-glass" onclick="closeManagerPortalModal(); openBookingRegisterModal();" style="padding: 12px 14px; font-size: 0.85rem;">
+          📋 Booked Dates (<span id="portalTotalBookingsCount">0</span>)
+        </button>
+        <button class="btn btn-glass" onclick="closeManagerPortalModal(); openChangePasscodeModal();" style="padding: 12px 14px; font-size: 0.85rem;">
+          🔑 Change Passcode
+        </button>
+        <button class="btn btn-glass" onclick="closeManagerPortalModal(); openAuditLogModal();" style="padding: 12px 14px; font-size: 0.85rem;">
+          📜 Security Audit Log
+        </button>
+      </div>
+      <div class="modal-button-group">
+        <button type="button" class="btn btn-outline nav-logout-btn w-full" onclick="closeManagerPortalModal(); managerLogout();">
+          🚪 Secure Logout & End Session
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1C. CHANGE PASSCODE MODAL -->
+  <div class="modal-overlay" id="changePasscodeModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeChangePasscodeModal()" aria-label="Close dialog">&times;</button>
+      <div class="modal-header">
+        <span class="modal-badge">SECURITY CREDENTIALS</span>
+        <h3>Change Manager Passcode</h3>
+        <p>Set your own custom private password. It will be encrypted with SHA-256.</p>
+      </div>
+      <form id="changePasscodeForm" onsubmit="handleChangePasscode(event)">
+        <div class="form-group">
+          <label for="currentPasscode">Current Passcode *</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="currentPasscode" required placeholder="Enter current passcode" class="form-control">
+            <button type="button" class="btn-toggle-visibility" onclick="togglePasscodeVisibility('currentPasscode', this)" title="Show/Hide">👁️</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="newPasscode">New Passcode *</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="newPasscode" required minlength="4" placeholder="Enter new passcode (min 4 chars)" class="form-control">
+            <button type="button" class="btn-toggle-visibility" onclick="togglePasscodeVisibility('newPasscode', this)" title="Show/Hide">👁️</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="confirmNewPasscode">Confirm New Passcode *</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="confirmNewPasscode" required minlength="4" placeholder="Confirm new passcode" class="form-control">
+            <button type="button" class="btn-toggle-visibility" onclick="togglePasscodeVisibility('confirmNewPasscode', this)" title="Show/Hide">👁️</button>
+          </div>
+        </div>
+        <div class="modal-button-group">
+          <button type="submit" class="btn btn-primary w-full">
+            <span>💾 Save & Hash New Passcode</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 1D. SECURITY & ACTIVITY AUDIT LOG MODAL -->
+  <div class="modal-overlay" id="auditLogModal" aria-hidden="true">
+    <div class="modal-card" style="max-width: 640px;">
+      <button class="modal-close" onclick="closeAuditLogModal()" aria-label="Close dialog">&times;</button>
+      <div class="modal-header">
+        <span class="modal-badge">SECURITY AUDIT TRAIL</span>
+        <h3>Activity & Security Log</h3>
+        <p>Immutable log of recent authentication events, date blockings, and releases.</p>
+      </div>
+      <div id="auditLogContainer" style="max-height: 360px; overflow-y: auto; margin-bottom: 20px;">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="modal-button-group">
+        <button type="button" class="btn btn-outline btn-sm" onclick="clearAuditLog()" style="font-size: 0.78rem;">
+          🧹 Clear History
+        </button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="closeAuditLogModal()">
+          Close
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1607,6 +1739,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=2.0.1"></script>
+  <script src="script.js?v=2.1.0"></script>
 </body>
 </html>
