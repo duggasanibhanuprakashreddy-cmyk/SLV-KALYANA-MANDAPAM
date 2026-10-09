@@ -3244,60 +3244,79 @@ button {
   background: rgba(123, 17, 19, 0.05);
 }
 
-/* OTP Delivery Simulation Notification Banner */
-.otp-sim-banner {
-  background: #ECFDF5;
-  border: 1.5px solid #10B981;
-  color: #065F46;
-  padding: 12px 14px;
-  border-radius: 10px;
-  font-size: 0.85rem;
+/* Private & Secure OTP Delivery Banner */
+.otp-privacy-banner {
+  background: #F0FDF4;
+  border: 1.5px solid #22C55E;
+  color: #14532D;
+  padding: 14px;
+  border-radius: 12px;
   margin: 14px 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   animation: slideDown 0.3s ease;
 }
 
-.otp-sim-header {
+.otp-privacy-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 700;
+  align-items: flex-start;
+  gap: 10px;
 }
 
-.otp-code-display {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.otp-privacy-header .icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.otp-privacy-header strong {
+  display: block;
+  font-size: 0.92rem;
+  color: #15803D;
+}
+
+.otp-privacy-header p {
+  font-size: 0.82rem;
+  color: #166534;
+  margin: 2px 0 0;
+  line-height: 1.4;
+}
+
+.otp-whatsapp-dispatch-card {
   background: #FFFFFF;
-  padding: 8px 12px;
+  border: 1px solid #BBF7D0;
   border-radius: 8px;
-  border: 1px dashed #10B981;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
 }
 
-.otp-number {
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: 4px;
-  color: #047857;
-  font-family: monospace;
+.otp-whatsapp-dispatch-card span {
+  font-size: 0.8rem;
+  color: #15803D;
+  font-weight: 600;
 }
 
-.otp-autofill-btn {
-  background: #10B981;
+.btn-whatsapp-otp {
+  background: #25D366;
   color: #FFFFFF;
-  border: none;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s, transform 0.2s;
+  white-space: nowrap;
 }
 
-.otp-autofill-btn:hover {
-  background: #059669;
+.btn-whatsapp-otp:hover {
+  background: #1EBE5D;
+  transform: translateY(-1px);
 }
 
 .otp-input-field {

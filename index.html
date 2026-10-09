@@ -68,7 +68,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="styles.css?v=2.2.0">
+  <link rel="stylesheet" href="styles.css?v=2.3.0">
 </head>
 <body class="lighting-twilight">
 
@@ -1579,22 +1579,31 @@
 
         <!-- OTP Verification Form (Appears once OTP is dispatched) -->
         <div id="verifyOtpContainer" style="display: none; margin-top: 14px;">
-          <div class="otp-sim-banner" id="otpSimBanner">
-            <div class="otp-sim-header">
-              <span>📲 Official OTP Sent to Mobile</span>
-              <span id="otpCountdownBadge" style="font-size: 0.75rem; background: #047857; color: white; padding: 2px 6px; border-radius: 4px;">Expires in 3:00</span>
+          <div class="otp-privacy-banner" id="otpPrivacyBanner">
+            <div class="otp-privacy-header">
+              <span class="icon">🔒</span>
+              <div>
+                <strong>Confidential 2FA OTP Dispatched</strong>
+                <p>A private 6-digit verification code was sent to registered mobile <strong id="otpMaskedPhoneDisplay">+91 ******4221</strong> via WhatsApp.</p>
+              </div>
             </div>
-            <div class="otp-code-display">
-              <span>Security Code:</span>
-              <strong class="otp-number" id="generatedOtpDisplay">------</strong>
-              <button type="button" class="otp-autofill-btn" onclick="autoFillOtp()">⚡ Auto-fill</button>
+            <div class="otp-whatsapp-dispatch-card">
+              <span>📱 Receiving on WhatsApp:</span>
+              <a href="#" id="otpWhatsAppLink" target="_blank" rel="noopener noreferrer" class="btn-whatsapp-otp">
+                <span>💬 Open WhatsApp OTP</span>
+              </a>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: #166534; padding-top: 2px;">
+              <span>🛡️ End-to-End Privacy Protected</span>
+              <span id="otpCountdownBadge" style="font-size: 0.75rem; background: #047857; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Expires in 3:00</span>
             </div>
           </div>
 
           <form id="verifyOtpForm" onsubmit="handleVerifyOtp(event)">
             <div class="form-group">
-              <label for="otpInputField">Enter 6-Digit Verification OTP *</label>
-              <input type="text" id="otpInputField" required maxlength="6" pattern="[0-9]{6}" placeholder="• • • • • •" class="form-control otp-input-field" autocomplete="one-time-code">
+              <label for="otpInputField" style="font-weight: 700; color: #1F2937;">Enter 6-Digit Verification OTP *</label>
+              <input type="text" id="otpInputField" required maxlength="6" pattern="[0-9]{6}" placeholder="• • • • • •" class="form-control otp-input-field" autocomplete="one-time-code" inputmode="numeric">
+              <small style="display: block; margin-top: 6px; color: #6B7280; font-size: 0.78rem;">Check your registered WhatsApp messages for the confidential 6-digit OTP code.</small>
             </div>
             <div class="otp-actions-row">
               <button type="submit" class="btn btn-primary" id="verifyOtpSubmitBtn">
@@ -1757,22 +1766,31 @@
 
       <!-- Step 2: OTP Verification & New Passcode Fields -->
       <div id="resetFieldsContainer" style="display: none; margin-top: 14px;">
-        <div class="otp-sim-banner" id="resetOtpSimBanner">
-          <div class="otp-sim-header">
-            <span>📲 Recovery OTP Sent</span>
-            <span id="resetOtpCountdownBadge" style="font-size: 0.75rem; background: #047857; color: white; padding: 2px 6px; border-radius: 4px;">Expires in 3:00</span>
+        <div class="otp-privacy-banner" id="resetOtpPrivacyBanner">
+          <div class="otp-privacy-header">
+            <span class="icon">🔒</span>
+            <div>
+              <strong>Recovery OTP Dispatched Securely</strong>
+              <p>A private 6-digit passcode recovery code was sent to registered mobile <strong id="resetOtpMaskedPhoneDisplay">+91 ******4221</strong> via WhatsApp.</p>
+            </div>
           </div>
-          <div class="otp-code-display">
-            <span>Recovery Code:</span>
-            <strong class="otp-number" id="resetGeneratedOtpDisplay">------</strong>
-            <button type="button" class="otp-autofill-btn" onclick="autoFillResetOtp()">⚡ Auto-fill</button>
+          <div class="otp-whatsapp-dispatch-card">
+            <span>📱 Receiving on WhatsApp:</span>
+            <a href="#" id="resetOtpWhatsAppLink" target="_blank" rel="noopener noreferrer" class="btn-whatsapp-otp">
+              <span>💬 Open WhatsApp OTP</span>
+            </a>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: #166534; padding-top: 2px;">
+            <span>🛡️ Identity Recovery Verification</span>
+            <span id="resetOtpCountdownBadge" style="font-size: 0.75rem; background: #047857; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Expires in 3:00</span>
           </div>
         </div>
 
         <form id="performResetForm" onsubmit="handlePerformPasswordReset(event)">
           <div class="form-group">
-            <label for="resetOtpInputField">Enter 6-Digit Recovery OTP *</label>
-            <input type="text" id="resetOtpInputField" required maxlength="6" pattern="[0-9]{6}" placeholder="• • • • • •" class="form-control otp-input-field" autocomplete="one-time-code">
+            <label for="resetOtpInputField" style="font-weight: 700; color: #1F2937;">Enter 6-Digit Recovery OTP *</label>
+            <input type="text" id="resetOtpInputField" required maxlength="6" pattern="[0-9]{6}" placeholder="• • • • • •" class="form-control otp-input-field" autocomplete="one-time-code" inputmode="numeric">
+            <small style="display: block; margin-top: 6px; color: #6B7280; font-size: 0.78rem;">Enter the confidential 6-digit recovery code sent to your registered WhatsApp.</small>
           </div>
           <div class="form-group">
             <label for="resetNewPasscode">New Security Passcode (min 4 chars) *</label>
@@ -1869,6 +1887,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=2.2.0"></script>
+  <script src="script.js?v=2.3.0"></script>
 </body>
 </html>

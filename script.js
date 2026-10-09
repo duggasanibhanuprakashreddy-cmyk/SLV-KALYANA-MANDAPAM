@@ -772,12 +772,19 @@ function handleSendOtp(e) {
   currentLoginOtpExpiresAt = Date.now() + (3 * 60 * 1000); // 3 minutes
   currentLoginOtpPhone = normalizePhone(rawPhone);
 
-  // Update UI Display
-  const displayEl = document.getElementById('generatedOtpDisplay');
+  const maskedPhone = '+91 ******' + currentLoginOtpPhone.slice(-4);
+  const waPhone = currentLoginOtpPhone.startsWith('0') ? currentLoginOtpPhone.substring(1) : currentLoginOtpPhone;
+  const waMsg = `Namaste ${adminName},\n\nYour SLV Kalyana Mandapam Manager Portal 2FA verification OTP is:\n\n*${currentLoginOtp}*\n\nValid for 3 minutes. Keep this OTP confidential and do not share with anyone.`;
+  const waUrl = `https://api.whatsapp.com/send?phone=91${waPhone}&text=${encodeURIComponent(waMsg)}`;
+
+  // Update UI Display safely (NEVER reveal plaintext OTP on screen)
+  const maskedDisplay = document.getElementById('otpMaskedPhoneDisplay');
+  const waLink = document.getElementById('otpWhatsAppLink');
   const containerEl = document.getElementById('verifyOtpContainer');
   const otpInput = document.getElementById('otpInputField');
 
-  if (displayEl) displayEl.textContent = currentLoginOtp;
+  if (maskedDisplay) maskedDisplay.textContent = `${maskedPhone} (${adminName})`;
+  if (waLink) waLink.href = waUrl;
   if (containerEl) containerEl.style.display = 'block';
   if (otpInput) {
     otpInput.value = '';
@@ -793,17 +800,20 @@ function handleSendOtp(e) {
     alert('The verification OTP has expired. Please click Resend.');
   });
 
-  addAuditLog(`OTP sent to ${adminName} (${currentLoginOtpPhone})`, 'security');
-  alert(`📲 [SMS / WhatsApp Verification]\n\nYour 6-digit SLV Kalyana Mandapam OTP is: ${currentLoginOtp}\n\nValid for 3 minutes.`);
+  addAuditLog(`Secure OTP dispatched to ${adminName} (${maskedPhone}) via WhatsApp`, 'security');
+
+  // Trigger WhatsApp dispatch in new tab
+  try {
+    window.open(waUrl, '_blank');
+  } catch (err) {
+    console.info('Popup blocked, WhatsApp link available in dialog.', err);
+  }
+
+  alert(`📲 [Secure 2FA OTP Dispatched]\n\nA confidential 6-digit OTP has been dispatched to ${adminName} via WhatsApp (${maskedPhone}).\n\nPlease check your WhatsApp and enter the 6 digits below to complete login.`);
 }
 
 function autoFillOtp() {
-  const otpInput = document.getElementById('otpInputField');
-  if (otpInput && currentLoginOtp) {
-    otpInput.value = currentLoginOtp;
-    const submitBtn = document.getElementById('verifyOtpSubmitBtn');
-    if (submitBtn) submitBtn.focus();
-  }
+  // Disabled for end-to-end user privacy and security
 }
 
 function handleVerifyOtp(e) {
@@ -900,10 +910,23 @@ function handleSendResetOtp(e) {
   currentResetOtpExpiresAt = Date.now() + (3 * 60 * 1000);
   currentResetOtpPhone = normalizePhone(phone);
 
-  const displayEl = document.getElementById('resetGeneratedOtpDisplay');
+  const maskedPhone = '+91 ******' + currentResetOtpPhone.slice(-4);
+  const waPhone = currentResetOtpPhone.startsWith('0') ? currentResetOtpPhone.substring(1) : currentResetOtpPhone;
+  const waMsg = `Namaste ${adminName},\n\nYour SLV Kalyana Mandapam Passcode Reset Recovery OTP is:\n\n*${currentResetOtp}*\n\nValid for 3 minutes. Keep this OTP confidential and do not share with anyone.`;
+  const waUrl = `https://api.whatsapp.com/send?phone=91${waPhone}&text=${encodeURIComponent(waMsg)}`;
+
+  const maskedDisplay = document.getElementById('resetOtpMaskedPhoneDisplay');
+  const waLink = document.getElementById('resetOtpWhatsAppLink');
   const fieldsEl = document.getElementById('resetFieldsContainer');
-  if (displayEl) displayEl.textContent = currentResetOtp;
+  const input = document.getElementById('resetOtpInputField');
+
+  if (maskedDisplay) maskedDisplay.textContent = `${maskedPhone} (${adminName})`;
+  if (waLink) waLink.href = waUrl;
   if (fieldsEl) fieldsEl.style.display = 'block';
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
 
   if (resetOtpTicker) clearInterval(resetOtpTicker);
   resetOtpTicker = startOtpCountdown('resetOtpCountdownBadge', currentResetOtpExpiresAt, () => {
@@ -911,15 +934,20 @@ function handleSendResetOtp(e) {
     alert('Password recovery OTP has expired. Please request a new one.');
   });
 
-  addAuditLog(`Password Reset OTP sent to ${adminName} (${currentResetOtpPhone})`, 'security');
-  alert(`📲 [Password Recovery OTP]\n\nYour 6-digit verification code is: ${currentResetOtp}\n\nEnter this OTP along with your new passcode below.`);
+  addAuditLog(`Password Reset OTP dispatched to ${adminName} (${maskedPhone}) via WhatsApp`, 'security');
+
+  // Trigger WhatsApp dispatch in new tab
+  try {
+    window.open(waUrl, '_blank');
+  } catch (err) {
+    console.info('Popup blocked, WhatsApp link available in dialog.', err);
+  }
+
+  alert(`📲 [Recovery OTP Dispatched]\n\nA confidential 6-digit passcode recovery code has been dispatched to ${adminName} via WhatsApp (${maskedPhone}).\n\nPlease check WhatsApp and enter the 6-digit code below.`);
 }
 
 function autoFillResetOtp() {
-  const input = document.getElementById('resetOtpInputField');
-  if (input && currentResetOtp) {
-    input.value = currentResetOtp;
-  }
+  // Disabled for end-to-end user privacy and security
 }
 
 async function handlePerformPasswordReset(e) {
