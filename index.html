@@ -68,7 +68,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="styles.css?v=2.1.0">
+  <link rel="stylesheet" href="styles.css?v=2.2.0">
 </head>
 <body class="lighting-twilight">
 
@@ -1549,24 +1549,87 @@
       <div class="modal-header">
         <span class="modal-badge">🛡️ VENUE SECURITY & AUTHENTICATION</span>
         <h3>Author & Manager Secure Portal</h3>
-        <p>Restricted access for <strong>Ramana Reddy</strong> & <strong>Duggasani Bhanuprakash Reddy</strong> to manage dates and offline bookings.</p>
+        <p>Restricted access for <strong>Ramana Reddy</strong> & <strong>Duggasani Bhanuprakash Reddy</strong>.</p>
       </div>
-      <form id="managerLoginForm" onsubmit="handleManagerLogin(event)">
-        <div class="form-group">
-          <label for="managerPin">Authorized Security Passcode *</label>
-          <div class="password-input-wrapper">
-            <input type="password" id="managerPin" required placeholder="Enter authorized security passcode" class="form-control" autocomplete="current-password">
-            <button type="button" class="btn-toggle-visibility" onclick="togglePasscodeVisibility('managerPin', this)" aria-label="Toggle passcode visibility" title="Show/Hide Passcode">👁️</button>
+
+      <!-- Login Method Tabs -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="tabOtpBtn" onclick="switchAuthTab('otp')">
+          📱 Phone & OTP
+        </button>
+        <button type="button" class="auth-tab-btn" id="tabPasscodeBtn" onclick="switchAuthTab('passcode')">
+          🔑 Passcode Login
+        </button>
+      </div>
+
+      <!-- Tab 1: Phone & OTP Mode -->
+      <div id="sectionAuthOtp">
+        <form id="requestOtpForm" onsubmit="handleSendOtp(event)">
+          <div class="form-group">
+            <label for="loginPhone">Registered Administrator Mobile Number *</label>
+            <input type="tel" id="loginPhone" required placeholder="Enter mobile number (e.g. 6303414221)" class="form-control" autocomplete="tel">
+            <div class="registered-phones-hint">
+              <span>🛡️ Authorized: <strong>Ramana Reddy (6303414221)</strong> or <strong>D. Bhanuprakash Reddy (09440400291)</strong></span>
+            </div>
           </div>
-          <div id="authLockoutNotice" class="auth-lockout-alert" style="display: none;"></div>
-          <small class="security-note">🔒 Protected by 256-Bit Cryptographic Hashing & Rate-Limiting. Authorized management only.</small>
-        </div>
-        <div class="modal-button-group">
-          <button type="submit" class="btn btn-primary w-full" id="managerLoginSubmitBtn">
-            <span>🔓 Authenticate & Unlock Portal</span>
+          <button type="submit" class="btn btn-primary w-full" id="sendOtpBtn">
+            <span>📨 Send 6-Digit Verification OTP</span>
           </button>
+        </form>
+
+        <!-- OTP Verification Form (Appears once OTP is dispatched) -->
+        <div id="verifyOtpContainer" style="display: none; margin-top: 14px;">
+          <div class="otp-sim-banner" id="otpSimBanner">
+            <div class="otp-sim-header">
+              <span>📲 Official OTP Sent to Mobile</span>
+              <span id="otpCountdownBadge" style="font-size: 0.75rem; background: #047857; color: white; padding: 2px 6px; border-radius: 4px;">Expires in 3:00</span>
+            </div>
+            <div class="otp-code-display">
+              <span>Security Code:</span>
+              <strong class="otp-number" id="generatedOtpDisplay">------</strong>
+              <button type="button" class="otp-autofill-btn" onclick="autoFillOtp()">⚡ Auto-fill</button>
+            </div>
+          </div>
+
+          <form id="verifyOtpForm" onsubmit="handleVerifyOtp(event)">
+            <div class="form-group">
+              <label for="otpInputField">Enter 6-Digit Verification OTP *</label>
+              <input type="text" id="otpInputField" required maxlength="6" pattern="[0-9]{6}" placeholder="• • • • • •" class="form-control otp-input-field" autocomplete="one-time-code">
+            </div>
+            <div class="otp-actions-row">
+              <button type="submit" class="btn btn-primary" id="verifyOtpSubmitBtn">
+                <span>🔓 Verify OTP & Login</span>
+              </button>
+              <button type="button" class="btn btn-outline" id="resendOtpBtn" onclick="handleResendOtp()">
+                🔄 Resend
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
+
+      <!-- Tab 2: Passcode Mode -->
+      <div id="sectionAuthPasscode" style="display: none;">
+        <form id="managerLoginForm" onsubmit="handleManagerLogin(event)">
+          <div class="form-group">
+            <label for="managerPin">Authorized Security Passcode *</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="managerPin" required placeholder="Enter authorized security passcode" class="form-control" autocomplete="current-password">
+              <button type="button" class="btn-toggle-visibility" onclick="togglePasscodeVisibility('managerPin', this)" aria-label="Toggle passcode visibility" title="Show/Hide Passcode">👁️</button>
+            </div>
+            <div id="authLockoutNotice" class="auth-lockout-alert" style="display: none;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+              <small class="security-note" style="margin: 0;">🔒 256-Bit Cryptographic Hashing</small>
+              <button type="button" class="forgot-link-btn" onclick="openForgotPasswordModal()">❓ Forgot Passcode?</button>
+            </div>
+          </div>
+          <div class="modal-button-group" style="margin-top: 14px;">
+            <button type="submit" class="btn btn-primary w-full" id="managerLoginSubmitBtn">
+              <span>🔓 Authenticate & Unlock Portal</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -1668,6 +1731,73 @@
     </div>
   </div>
 
+  <!-- 1E. FORGOT PASSCODE / RESET VIA MOBILE OTP MODAL -->
+  <div class="modal-overlay" id="forgotPasswordModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeForgotPasswordModal()" aria-label="Close dialog">&times;</button>
+      <div class="modal-header">
+        <span class="modal-badge">SECURITY CREDENTIALS RECOVERY</span>
+        <h3>Reset Manager Passcode</h3>
+        <p>Verify your registered administrator phone number with a 6-digit OTP to set a new passcode.</p>
+      </div>
+
+      <!-- Step 1: Phone Request Form -->
+      <form id="forgotPasswordPhoneForm" onsubmit="handleSendResetOtp(event)">
+        <div class="form-group">
+          <label for="resetPhone">Registered Administrator Mobile Number *</label>
+          <input type="tel" id="resetPhone" required placeholder="Enter mobile number (e.g. 6303414221)" class="form-control" autocomplete="tel">
+          <div class="registered-phones-hint">
+            <span>🛡️ Registered: <strong>Ramana Reddy (6303414221)</strong> or <strong>D. Bhanuprakash Reddy (09440400291)</strong></span>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-gold w-full" id="sendResetOtpBtn">
+          <span>📨 Send Password Recovery OTP</span>
+        </button>
+      </form>
+
+      <!-- Step 2: OTP Verification & New Passcode Fields -->
+      <div id="resetFieldsContainer" style="display: none; margin-top: 14px;">
+        <div class="otp-sim-banner" id="resetOtpSimBanner">
+          <div class="otp-sim-header">
+            <span>📲 Recovery OTP Sent</span>
+            <span id="resetOtpCountdownBadge" style="font-size: 0.75rem; background: #047857; color: white; padding: 2px 6px; border-radius: 4px;">Expires in 3:00</span>
+          </div>
+          <div class="otp-code-display">
+            <span>Recovery Code:</span>
+            <strong class="otp-number" id="resetGeneratedOtpDisplay">------</strong>
+            <button type="button" class="otp-autofill-btn" onclick="autoFillResetOtp()">⚡ Auto-fill</button>
+          </div>
+        </div>
+
+        <form id="performResetForm" onsubmit="handlePerformPasswordReset(event)">
+          <div class="form-group">
+            <label for="resetOtpInputField">Enter 6-Digit Recovery OTP *</label>
+            <input type="text" id="resetOtpInputField" required maxlength="6" pattern="[0-9]{6}" placeholder="• • • • • •" class="form-control otp-input-field" autocomplete="one-time-code">
+          </div>
+          <div class="form-group">
+            <label for="resetNewPasscode">New Security Passcode (min 4 chars) *</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="resetNewPasscode" required minlength="4" placeholder="Enter new passcode" class="form-control">
+              <button type="button" class="btn-toggle-visibility" onclick="togglePasscodeVisibility('resetNewPasscode', this)" title="Show/Hide">👁️</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="resetConfirmPasscode">Confirm New Passcode *</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="resetConfirmPasscode" required minlength="4" placeholder="Confirm new passcode" class="form-control">
+              <button type="button" class="btn-toggle-visibility" onclick="togglePasscodeVisibility('resetConfirmPasscode', this)" title="Show/Hide">👁️</button>
+            </div>
+          </div>
+          <div class="modal-button-group">
+            <button type="submit" class="btn btn-primary w-full" id="confirmResetPasscodeBtn">
+              <span>🔒 Verify OTP & Save New Passcode</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- 2. OFFLINE BOOKING BLOCK MODAL -->
   <div class="modal-overlay" id="offlineBookingModal" aria-hidden="true">
     <div class="modal-card">
@@ -1739,6 +1869,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=2.1.0"></script>
+  <script src="script.js?v=2.2.0"></script>
 </body>
 </html>

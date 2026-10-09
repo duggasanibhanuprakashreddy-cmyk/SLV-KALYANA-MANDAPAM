@@ -3205,3 +3205,144 @@ button {
   color: var(--text-dark);
 }
 
+/* Auth Mode Tabs (Phone & OTP vs Passcode) */
+.auth-tabs {
+  display: flex;
+  background: var(--bg-alt);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-gold);
+}
+
+.auth-tab-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.auth-tab-btn.active {
+  background: var(--royal-maroon);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(123, 17, 19, 0.25);
+}
+
+.auth-tab-btn:hover:not(.active) {
+  color: var(--royal-maroon);
+  background: rgba(123, 17, 19, 0.05);
+}
+
+/* OTP Delivery Simulation Notification Banner */
+.otp-sim-banner {
+  background: #ECFDF5;
+  border: 1.5px solid #10B981;
+  color: #065F46;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  margin: 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideDown 0.3s ease;
+}
+
+.otp-sim-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+}
+
+.otp-code-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFFFFF;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px dashed #10B981;
+}
+
+.otp-number {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: #047857;
+  font-family: monospace;
+}
+
+.otp-autofill-btn {
+  background: #10B981;
+  color: #FFFFFF;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.otp-autofill-btn:hover {
+  background: #059669;
+}
+
+.otp-input-field {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 6px !important;
+  text-align: center !important;
+  font-family: monospace !important;
+}
+
+.forgot-link-btn {
+  background: none;
+  border: none;
+  color: var(--royal-maroon);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  display: inline-block;
+  margin-top: 8px;
+  transition: color 0.2s;
+}
+
+.forgot-link-btn:hover {
+  color: #8E0E10;
+}
+
+.otp-actions-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.otp-actions-row button {
+  flex: 1;
+}
+
+.registered-phones-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+

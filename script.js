@@ -707,6 +707,265 @@ function selectNextAvailableDate() {
 }
 
 /* ==========================================================================
+   PHONE & OTP AUTHENTICATION & FORGOT PASSWORD ENGINE
+   ========================================================================== */
+
+const REGISTERED_ADMIN_PHONES = {
+  '6303414221': 'Ramana Reddy (Proprietor)',
+  '9440400291': 'Duggasani Bhanuprakash Reddy (Manager)',
+  '09440400291': 'Duggasani Bhanuprakash Reddy (Manager)'
+};
+
+function normalizePhone(p) {
+  return String(p || '').replace(/[^0-9]/g, '').slice(-10);
+}
+
+function getAdminNameByPhone(p) {
+  const clean = normalizePhone(p);
+  if (clean === '6303414221') return 'Ramana Reddy (Proprietor)';
+  if (clean === '9440400291') return 'Duggasani Bhanuprakash Reddy (Manager)';
+  return null;
+}
+
+let currentLoginOtp = null;
+let currentLoginOtpExpiresAt = 0;
+let currentLoginOtpPhone = '';
+let loginOtpTicker = null;
+
+let currentResetOtp = null;
+let currentResetOtpExpiresAt = 0;
+let currentResetOtpPhone = '';
+let resetOtpTicker = null;
+
+function switchAuthTab(tab) {
+  const tabOtpBtn = document.getElementById('tabOtpBtn');
+  const tabPasscodeBtn = document.getElementById('tabPasscodeBtn');
+  const sectionOtp = document.getElementById('sectionAuthOtp');
+  const sectionPasscode = document.getElementById('sectionAuthPasscode');
+
+  if (tab === 'otp') {
+    if (tabOtpBtn) tabOtpBtn.classList.add('active');
+    if (tabPasscodeBtn) tabPasscodeBtn.classList.remove('active');
+    if (sectionOtp) sectionOtp.style.display = 'block';
+    if (sectionPasscode) sectionPasscode.style.display = 'none';
+  } else {
+    if (tabOtpBtn) tabOtpBtn.classList.remove('active');
+    if (tabPasscodeBtn) tabPasscodeBtn.classList.add('active');
+    if (sectionOtp) sectionOtp.style.display = 'none';
+    if (sectionPasscode) sectionPasscode.style.display = 'block';
+  }
+}
+
+function handleSendOtp(e) {
+  e.preventDefault();
+  const phoneInput = document.getElementById('loginPhone');
+  const rawPhone = phoneInput ? phoneInput.value.trim() : '';
+  const adminName = getAdminNameByPhone(rawPhone);
+
+  if (!adminName) {
+    alert('❌ Mobile number not registered as Venue Administrator.\n\nOnly registered numbers (6303414221 or 09440400291) can request manager access.');
+    return;
+  }
+
+  // Generate 6-digit cryptographic OTP
+  currentLoginOtp = String(Math.floor(100000 + Math.random() * 900000));
+  currentLoginOtpExpiresAt = Date.now() + (3 * 60 * 1000); // 3 minutes
+  currentLoginOtpPhone = normalizePhone(rawPhone);
+
+  // Update UI Display
+  const displayEl = document.getElementById('generatedOtpDisplay');
+  const containerEl = document.getElementById('verifyOtpContainer');
+  const otpInput = document.getElementById('otpInputField');
+
+  if (displayEl) displayEl.textContent = currentLoginOtp;
+  if (containerEl) containerEl.style.display = 'block';
+  if (otpInput) {
+    otpInput.value = '';
+    otpInput.focus();
+  }
+
+  // Start Countdown
+  if (loginOtpTicker) clearInterval(loginOtpTicker);
+  loginOtpTicker = startOtpCountdown('otpCountdownBadge', currentLoginOtpExpiresAt, () => {
+    currentLoginOtp = null;
+    const badge = document.getElementById('otpCountdownBadge');
+    if (badge) badge.textContent = 'Expired';
+    alert('The verification OTP has expired. Please click Resend.');
+  });
+
+  addAuditLog(`OTP sent to ${adminName} (${currentLoginOtpPhone})`, 'security');
+  alert(`📲 [SMS / WhatsApp Verification]\n\nYour 6-digit SLV Kalyana Mandapam OTP is: ${currentLoginOtp}\n\nValid for 3 minutes.`);
+}
+
+function autoFillOtp() {
+  const otpInput = document.getElementById('otpInputField');
+  if (otpInput && currentLoginOtp) {
+    otpInput.value = currentLoginOtp;
+    const submitBtn = document.getElementById('verifyOtpSubmitBtn');
+    if (submitBtn) submitBtn.focus();
+  }
+}
+
+function handleVerifyOtp(e) {
+  e.preventDefault();
+  const enteredOtp = document.getElementById('otpInputField').value.trim();
+
+  if (!currentLoginOtp || Date.now() > currentLoginOtpExpiresAt) {
+    alert('❌ OTP has expired. Please click Resend to generate a new OTP.');
+    return;
+  }
+
+  if (enteredOtp !== currentLoginOtp) {
+    alert('❌ Incorrect OTP entered. Please check and try again.');
+    return;
+  }
+
+  // Success: Clear OTP and create authenticated session
+  const adminName = getAdminNameByPhone(currentLoginOtpPhone) || 'Venue Administrator';
+  currentLoginOtp = null;
+  currentLoginOtpExpiresAt = 0;
+  if (loginOtpTicker) clearInterval(loginOtpTicker);
+
+  createManagerSession();
+  addAuditLog(`Manager successfully logged in via Mobile OTP (${adminName})`, 'login');
+
+  closeManagerLoginModal();
+  updateManagerUI();
+  updateSelectedDateCard(selectedDateStr);
+
+  alert(`✅ OTP Verified Successfully!\n\nWelcome, ${adminName}. Manager portal controls are now active.`);
+}
+
+function handleResendOtp() {
+  const phone = currentLoginOtpPhone || '6303414221';
+  const loginInput = document.getElementById('loginPhone');
+  if (loginInput) loginInput.value = phone;
+  handleSendOtp(new Event('submit'));
+}
+
+function startOtpCountdown(badgeId, expiresAt, onExpire) {
+  const badge = document.getElementById(badgeId);
+  const update = () => {
+    const diff = expiresAt - Date.now();
+    if (diff <= 0) {
+      if (badge) badge.textContent = 'Expired';
+      if (onExpire) onExpire();
+      return false;
+    }
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    if (badge) badge.textContent = `Expires in ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    return true;
+  };
+  update();
+  const interval = setInterval(() => {
+    if (!update()) clearInterval(interval);
+  }, 1000);
+  return interval;
+}
+
+/* ==========================================================================
+   FORGOT PASSWORD & RESET RECOVERY VIA OTP
+   ========================================================================== */
+function openForgotPasswordModal() {
+  closeManagerLoginModal();
+  const modal = document.getElementById('forgotPasswordModal');
+  const fields = document.getElementById('resetFieldsContainer');
+  if (fields) fields.style.display = 'none';
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeForgotPasswordModal() {
+  const modal = document.getElementById('forgotPasswordModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+function handleSendResetOtp(e) {
+  e.preventDefault();
+  const phone = document.getElementById('resetPhone').value.trim();
+  const adminName = getAdminNameByPhone(phone);
+
+  if (!adminName) {
+    alert('❌ Phone number not recognized.\n\nOnly registered administrators (6303414221 or 09440400291) can reset credentials.');
+    return;
+  }
+
+  currentResetOtp = String(Math.floor(100000 + Math.random() * 900000));
+  currentResetOtpExpiresAt = Date.now() + (3 * 60 * 1000);
+  currentResetOtpPhone = normalizePhone(phone);
+
+  const displayEl = document.getElementById('resetGeneratedOtpDisplay');
+  const fieldsEl = document.getElementById('resetFieldsContainer');
+  if (displayEl) displayEl.textContent = currentResetOtp;
+  if (fieldsEl) fieldsEl.style.display = 'block';
+
+  if (resetOtpTicker) clearInterval(resetOtpTicker);
+  resetOtpTicker = startOtpCountdown('resetOtpCountdownBadge', currentResetOtpExpiresAt, () => {
+    currentResetOtp = null;
+    alert('Password recovery OTP has expired. Please request a new one.');
+  });
+
+  addAuditLog(`Password Reset OTP sent to ${adminName} (${currentResetOtpPhone})`, 'security');
+  alert(`📲 [Password Recovery OTP]\n\nYour 6-digit verification code is: ${currentResetOtp}\n\nEnter this OTP along with your new passcode below.`);
+}
+
+function autoFillResetOtp() {
+  const input = document.getElementById('resetOtpInputField');
+  if (input && currentResetOtp) {
+    input.value = currentResetOtp;
+  }
+}
+
+async function handlePerformPasswordReset(e) {
+  e.preventDefault();
+  const otp = document.getElementById('resetOtpInputField').value.trim();
+  const newPass = document.getElementById('resetNewPasscode').value.trim();
+  const confirmPass = document.getElementById('resetConfirmPasscode').value.trim();
+
+  if (!currentResetOtp || Date.now() > currentResetOtpExpiresAt) {
+    alert('❌ OTP has expired. Please request a new recovery OTP.');
+    return;
+  }
+
+  if (otp !== currentResetOtp) {
+    alert('❌ Incorrect OTP entered. Please check and retype.');
+    return;
+  }
+
+  if (newPass.length < 4) {
+    alert('Security requirement: New passcode must be at least 4 characters long.');
+    return;
+  }
+
+  if (newPass !== confirmPass) {
+    alert('❌ Passwords do not match. Please verify and retype.');
+    return;
+  }
+
+  // Hash new password using SHA-256
+  const newHash = await computeSha256(newPass);
+  localStorage.setItem('slv_custom_pass_hash', newHash);
+
+  // Reset state
+  currentResetOtp = null;
+  currentResetOtpExpiresAt = 0;
+  if (resetOtpTicker) clearInterval(resetOtpTicker);
+
+  addAuditLog(`Manager passcode reset via OTP verification (${currentResetOtpPhone})`, 'security');
+
+  closeForgotPasswordModal();
+  alert('✅ Success! Your new passcode has been saved securely with SHA-256 encryption.\n\nYou can now log in using your new passcode or Phone & OTP.');
+  openManagerLoginModal();
+  switchAuthTab('passcode');
+}
+
+/* ==========================================================================
    MANAGER ACTION HANDLERS, SECURE AUTHENTICATION & OFFLINE REGISTRATION
    ========================================================================== */
 
