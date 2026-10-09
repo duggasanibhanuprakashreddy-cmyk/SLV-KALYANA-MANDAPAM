@@ -144,6 +144,11 @@ function showHotspotInfo(type) {
 /* ==========================================================================
    3. INTERACTIVE SUBHA MUHURTHAM & AVAILABILITY CALENDAR WITH MANAGER CONTROLS
    ========================================================================== */
+let currentCalYear = 2026;
+let currentCalMonth = 10; // 0-indexed: 10 is November
+let selectedDateStr = "2026-11-15";
+let activeCalendarFilter = "all";
+
 // Auspicious Telugu Wedding Subha Muhurtham dates for 2026-2027
 const subhaMuhurthamDates = {
   // Format: "YYYY-MM-DD": { title, tithi, status }
@@ -462,11 +467,6 @@ function updateTotalBookingsBadge() {
   if (countEl) countEl.textContent = count;
   if (portalCountEl) portalCountEl.textContent = count;
 }
-
-let currentCalYear = 2026;
-let currentCalMonth = 10; // 0-indexed: 10 is November
-let selectedDateStr = "2026-11-15";
-let activeCalendarFilter = "all";
 
 function initCalendar() {
   const prevBtn = document.getElementById('prevMonthBtn');
@@ -841,9 +841,10 @@ function handleVerifyOtp(e) {
 
   closeManagerLoginModal();
   updateManagerUI();
+  renderCalendar();
   updateSelectedDateCard(selectedDateStr);
 
-  alert(`✅ OTP Verified Successfully!\n\nWelcome, ${adminName}. Manager portal controls are now active.`);
+  showToast(`👑 Welcome, ${adminName}! Manager portal controls are now active.`, 'success', 4000);
 }
 
 function handleResendOtp() {
@@ -1101,9 +1102,10 @@ async function handleManagerLogin(e) {
 
     closeManagerLoginModal();
     updateManagerUI();
+    renderCalendar();
     updateSelectedDateCard(selectedDateStr);
 
-    alert('✅ Authentication Successful! Welcome, Venue Administrator. You can now manage dates and block offline bookings.');
+    showToast('👑 Authentication Successful! Welcome, Venue Administrator.', 'success', 4000);
   } else {
     // Handle failed attempt
     const state = getAuthFailedState();
@@ -1125,20 +1127,58 @@ async function handleManagerLogin(e) {
   }
 }
 
-function managerLogout(isExpired = false) {
-  if (!isExpired) {
-    const ok = confirm('Are you sure you want to securely log out of the Manager Portal?');
-    if (!ok) return;
+/* Toast Notification System */
+function showToast(message, type = 'info', duration = 3500) {
+  let container = document.getElementById('slvToastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'slvToastContainer';
+    container.className = 'slv-toast-container';
+    document.body.appendChild(container);
   }
 
-  addAuditLog(isExpired ? 'Session automatically timed out' : 'Manager securely logged out', 'security');
-  clearManagerSession();
-  updateManagerUI();
-  updateSelectedDateCard(selectedDateStr);
+  const toast = document.createElement('div');
+  toast.className = `slv-toast ${type}`;
+  toast.innerHTML = `<span>${message}</span>`;
+  container.appendChild(toast);
 
-  alert(isExpired
-    ? '🔒 Security Notice: Your manager session has timed out due to inactivity. Logged out.'
-    : '🚪 You have been securely logged out of the Manager Portal.');
+  setTimeout(() => {
+    toast.style.animation = 'toastFadeOut 0.3s forwards';
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, duration);
+}
+
+function managerLogout(isExpired = false) {
+  // 1. Immediately close all manager dialogs
+  closeManagerPortalModal();
+  closeOfflineBookingModal();
+  closeChangePasscodeModal();
+  closeAuditLogModal();
+  closeBookingRegisterModal();
+  closeManagerLoginModal();
+  closeForgotPasswordModal();
+  document.body.style.overflow = '';
+
+  // 2. Clear credentials and active session
+  clearManagerSession();
+
+  // 3. Log security event
+  addAuditLog(isExpired ? 'Session automatically timed out' : 'Manager securely logged out', 'security');
+
+  // 4. Update all UI elements across the website
+  updateManagerUI();
+  renderCalendar();
+  if (typeof selectedDateStr !== 'undefined' && selectedDateStr) {
+    updateSelectedDateCard(selectedDateStr);
+  }
+
+  // 5. Provide instant visual confirmation toast
+  const msg = isExpired
+    ? '🔒 Security Notice: Your manager session timed out due to inactivity.'
+    : '🚪 You have been securely logged out of the Manager Portal.';
+  showToast(msg, isExpired ? 'warning' : 'success', 3500);
 }
 
 /* 1B. MANAGER DASHBOARD MODAL */
@@ -1326,7 +1366,18 @@ function saveOfflineBooking(e) {
   addAuditLog(`Blocked date ${date} for offline booking (${customer})`, 'general');
 
   closeOfflineBookingModal();
-  alert(`Success! Date ${date} is now marked as BOOKED for "${customer}". Online bookings for this date are now blocked.`);
+  showToast(`✅ Date ${date} is now marked as BOOKED for "${customer}"!`, 'success', 4000);
+}
+
+function previewAdminStatusChange() {
+  const select = document.getElementById('adminStatusSelect');
+  const custGroup = document.getElementById('adminCustomerGroup');
+  const phoneGroup = document.getElementById('adminCustomerPhoneGroup');
+  if (!select) return;
+
+  const isAvailable = select.value === 'available';
+  if (custGroup) custGroup.style.display = isAvailable ? 'none' : 'block';
+  if (phoneGroup) phoneGroup.style.display = isAvailable ? 'none' : 'block';
 }
 
 function saveAdminDateChange() {
@@ -1342,6 +1393,7 @@ function saveAdminDateChange() {
   if (status === 'available') {
     delete bookings[dateKey];
     addAuditLog(`Marked date ${dateKey} as AVAILABLE`, 'general');
+    showToast(`✅ Date ${dateKey} is now AVAILABLE for online bookings.`, 'success', 3500);
   } else {
     bookings[dateKey] = {
       customer,
@@ -1351,10 +1403,10 @@ function saveAdminDateChange() {
       status: status
     };
     addAuditLog(`Marked date ${dateKey} as ${status.toUpperCase()} (${customer})`, 'general');
+    showToast(`✅ Date ${dateKey} is now marked as ${status.toUpperCase()} (${customer})!`, 'success', 3500);
   }
 
   saveOfflineBookingsStore(bookings);
-  alert(`Updated: Date ${dateKey} is now marked as ${status.toUpperCase()}!`);
 }
 
 function clearAdminDateBooking() {
@@ -1366,7 +1418,7 @@ function clearAdminDateBooking() {
   saveOfflineBookingsStore(bookings);
   addAuditLog(`Released booking on date ${dateKey} (made available)`, 'general');
 
-  alert(`Date ${dateKey} is now released and AVAILABLE for online booking!`);
+  showToast(`✅ Date ${dateKey} is now released and AVAILABLE for booking!`, 'success', 3500);
 }
 
 function openBookingRegisterModal() {
@@ -1431,6 +1483,7 @@ function deleteBooking(dateKey) {
     saveOfflineBookingsStore(bookings);
     addAuditLog(`Released booking on date ${dateKey}`, 'general');
     renderBookingRegister();
+    showToast(`✅ Date ${dateKey} is now released and AVAILABLE for booking!`, 'success', 3500);
   }
 }
 
